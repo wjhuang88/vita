@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = [
+    "libvita-sys",
+]
+
+[workspace.package]
+version = "1.0.0"
+authors = ["Huang.Weijie <wjhuang@live.cn>"]
+edition = "2021"
+
+[profile.release]
+codegen-units = 1
+incremental = true
+lto = "fat"
+opt-level = 3
