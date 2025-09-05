@@ -1,4 +1,4 @@
-package zone.hwj.vita.def;
+package zone.hwj.vita.mock;
 
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemoryLayout.PathElement;

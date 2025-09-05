@@ -1,4 +1,4 @@
-package zone.hwj.vita.def;
+package zone.hwj.vita.mock;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
@@ -7,10 +7,9 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
-import java.util.Arrays;
 import java.util.function.BiConsumer;
 
-public class NativeString {
+public class NativeTestString {
     public static final MemoryLayout LAYOUT = MemoryLayout.structLayout(
             ValueLayout.JAVA_INT.withName("size"),
             MemoryLayout.paddingLayout(4),
@@ -32,7 +31,7 @@ public class NativeString {
     private final BiConsumer<MemorySegment, Integer> cleanup;
     private byte[] bytes;
 
-    public NativeString(MemorySegment segment, BiConsumer<MemorySegment, Integer> cleanup) {
+    public NativeTestString(MemorySegment segment, BiConsumer<MemorySegment, Integer> cleanup) {
         long segSize = segment.byteSize();
         long layoutSize = LAYOUT.byteSize();
         if (segSize != layoutSize) {

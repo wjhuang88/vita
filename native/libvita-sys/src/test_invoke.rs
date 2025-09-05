@@ -34,6 +34,12 @@ pub extern "system" fn test_create_bytes() -> *const u8 {
 }
 
 #[no_mangle]
+pub unsafe extern "system" fn test_create_bytes_free(ptr: *mut u8) {
+    println!("Freeing bytes from Rust!");
+    _ = Vec::from_raw_parts(ptr, 16, 16);
+}
+
+#[no_mangle]
 pub extern "system" fn test_create_string() -> *const JString {
     let items: Vec<u8> = b"Hello from Rust!".to_vec();
     println!("r: {}", items.as_ptr().addr());
@@ -45,6 +51,12 @@ pub extern "system" fn test_create_string() -> *const JString {
 
 #[no_mangle]
 pub unsafe extern "system" fn test_create_string_free(ptr: *mut u8, size: usize) {
-    println!("Freeing string from Rust!");
+    println!("Freeing string content from Rust!");
     _ = Vec::from_raw_parts(ptr, size, size);
+}
+
+#[no_mangle]
+pub unsafe extern "system" fn test_create_string_wrapper_free(ptr: *mut JString) {
+    println!("Freeing JString from Rust!");
+    _ = Box::from_raw(ptr);
 }
