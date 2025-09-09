@@ -8,13 +8,14 @@ import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 public class NativeTestString {
     public static final MemoryLayout LAYOUT = MemoryLayout.structLayout(
             ValueLayout.JAVA_INT.withName("size"),
             MemoryLayout.paddingLayout(4),
             ValueLayout.ADDRESS.withTargetLayout(ValueLayout.JAVA_BYTE).withName("data")
-    ).withName("JString");
+    ).withName("JBuffer");
 
     private static final VarHandle sizeHandle = LAYOUT.varHandle(PathElement.groupElement("size"));
     private static final VarHandle dataHandle = LAYOUT.varHandle(PathElement.groupElement("data"));
@@ -53,7 +54,8 @@ public class NativeTestString {
         if (bytes == null) {
             int size = getSize();
             byte[] handled = new byte[size];
-            MemorySegment data = getData().reinterpret(size, arena, seg -> cleanup.accept(seg, size));
+            Consumer<MemorySegment> c = cleanup != null ? seg -> cleanup.accept(seg, size) : null;
+            MemorySegment data = getData().reinterpret(size, arena, c);
             MemorySegment.copy(data, ValueLayout.JAVA_BYTE, 0, handled, 0, size);
             bytes = handled;
         }

@@ -6,7 +6,10 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import zone.hwj.vita.NativeCommon;
 
 class NativeMockInvoker {
@@ -25,6 +28,8 @@ class NativeMockInvoker {
     private static final MethodHandle testCreateStringFreeHandle;
     private static final MethodHandle testCreateStringWrapperFreeHandle;
 
+    private static final MethodHandle testInvokeCallbackHandle;
+
     static {
         helloWorldHandle = NativeCommon.makeHandle("hello_world", FunctionDescriptor.ofVoid());
         testAddIntHandle = NativeCommon.makeHandle("test_add_int", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
@@ -37,9 +42,11 @@ class NativeMockInvoker {
         testCreateBytesFreeHandle = NativeCommon.makeHandle("test_create_bytes_free", FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
 
         testCreateStringHandle = NativeCommon.makeHandle("test_create_string", FunctionDescriptor.of(ValueLayout.ADDRESS.withTargetLayout(
-                NativeTestString.LAYOUT)));
+                NativeTestString.LAYOUT), ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
         testCreateStringFreeHandle = NativeCommon.makeHandle("test_create_string_free", FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
         testCreateStringWrapperFreeHandle = NativeCommon.makeHandle("test_create_string_wrapper_free", FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
+
+        testInvokeCallbackHandle = NativeCommon.makeHandle("test_invoke_callback", FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS));
     }
 
     void helloWorld() {
@@ -99,9 +106,11 @@ class NativeMockInvoker {
         }
     }
 
-    String testCreateString() {
+    String testCreateString(String name) {
         try(Arena arena = Arena.ofConfined()) {
-            MemorySegment strSeg = ((MemorySegment) testCreateStringHandle.invokeExact()).reinterpret(arena, ptr -> {
+            byte[] nameBytes = name.getBytes(StandardCharsets.UTF_8);
+            MemorySegment nameSeg = arena.allocateFrom(ValueLayout.JAVA_BYTE, nameBytes);
+            MemorySegment strSeg = ((MemorySegment) testCreateStringHandle.invokeExact(nameSeg, nameBytes.length)).reinterpret(arena, ptr -> {
                 try {
                     testCreateStringWrapperFreeHandle.invokeExact(ptr);
                 } catch (Throwable e) {
@@ -119,5 +128,61 @@ class NativeMockInvoker {
         } catch (Throwable e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    static class CallbackHolder {
+
+        private static String content;
+
+        public static boolean testCallback(MemorySegment segment) {
+            try(Arena arena = Arena.ofConfined()) {
+                NativeTestString strInst = new NativeTestString(segment, null);
+                content = new String(strInst.getContent(arena), StandardCharsets.UTF_8);
+            }
+            return true;
+        }
+    }
+
+    String testCallbackInvoke() {
+        try {
+            MethodHandle cb = MethodHandles.lookup().findStatic(CallbackHolder.class, "testCallback", MethodType.methodType(boolean.class, MemorySegment.class));
+            FunctionDescriptor fc = FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, NativeTestString.LAYOUT);
+            MemorySegment cbPtr = NativeCommon.makeCallback(cb, fc);
+            boolean result = (boolean) testInvokeCallbackHandle.invokeExact(cbPtr);
+            if (result) {
+                return CallbackHolder.content;
+            }
+            return "Error";
+        } catch (Throwable e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    public static void main(String[] args) {
+        NativeMockInvoker nativeMockInvoker = new NativeMockInvoker();
+        nativeMockInvoker.helloWorld();
+
+        byte[] bytes = nativeMockInvoker.testCreateBytes();
+        System.out.println("Bytes from rust: " + Arrays.toString(bytes));
+        System.out.println("String from rust: " + new String(bytes));
+
+        String str = nativeMockInvoker.testCreateString("dear java用户😉");
+        System.out.println("String from rust: " + str);
+
+        int result = nativeMockInvoker.testAddInt(4, 898);
+        System.out.println(result);
+
+        NativeTest testStruct = nativeMockInvoker.testStruct(1, 2, 3, 4);
+        int a = testStruct.getA();
+        long b = testStruct.getB();
+        float c = testStruct.getC();
+        double d = testStruct.getD();
+        System.out.println(a);
+        System.out.println(b);
+        System.out.println(c);
+        System.out.println(d);
+
+        String cbr = nativeMockInvoker.testCallbackInvoke();
+        System.out.println(cbr);
     }
 }

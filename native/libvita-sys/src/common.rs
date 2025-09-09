@@ -7,7 +7,7 @@ pub struct JTestStruct {
 }
 
 #[repr(C)]
-pub struct JString {
+pub struct JBuffer {
     pub size: i32,
     pub data: *const u8,
 }

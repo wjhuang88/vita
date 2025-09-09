@@ -23,8 +23,9 @@ class NativeMockInvokerTest {
 
     @Test
     void testCreateString() {
-        String str = nativeMockInvoker.testCreateString();
+        String str = nativeMockInvoker.testCreateString("dear java用户😉");
         System.out.println("String from rust: " + str);
+        assertEquals("Hello dear java用户\uD83D\uDE09 from Rust! 我们都是好朋友\uD83D\uDE04", str);
     }
 
     @Test
@@ -66,5 +67,13 @@ class NativeMockInvokerTest {
         assertEquals(5L, b);
         assertEquals(6.99f, c);
         assertEquals(799999.888888888d, d);
+    }
+
+    @Test
+    void testCallbackInvoker() {
+        String cbr = nativeMockInvoker.testCallbackInvoke();
+        System.out.println(cbr);
+
+        assertEquals("Hello from Rust Callback!", cbr);
     }
 }

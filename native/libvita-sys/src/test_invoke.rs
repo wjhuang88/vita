@@ -1,4 +1,4 @@
-use crate::common::{JString, JTestStruct};
+use crate::common::{JBuffer, JTestStruct};
 
 #[no_mangle]
 pub extern "system" fn hello_world() {
@@ -40,11 +40,14 @@ pub unsafe extern "system" fn test_create_bytes_free(ptr: *mut u8) {
 }
 
 #[no_mangle]
-pub extern "system" fn test_create_string() -> *const JString {
-    let items: Vec<u8> = b"Hello from Rust!".to_vec();
+pub extern "system" fn test_create_string(name_ptr: *mut u8, size: i32) -> *const JBuffer {
+    let name = unsafe {
+        Vec::from_raw_parts(name_ptr, size as usize, size as usize)
+    };
+    let items: Vec<u8> = [b"Hello ".to_vec(), name, " from Rust! 我们都是好朋友😄".as_bytes().to_vec()].concat();
     println!("r: {}", items.as_ptr().addr());
-    Box::into_raw(Box::new(JString {
-        size: 16,
+    Box::into_raw(Box::new(JBuffer {
+        size: items.len() as i32,
         data: items.leak().as_ptr()
     }))
 }
@@ -56,7 +59,19 @@ pub unsafe extern "system" fn test_create_string_free(ptr: *mut u8, size: usize)
 }
 
 #[no_mangle]
-pub unsafe extern "system" fn test_create_string_wrapper_free(ptr: *mut JString) {
+pub unsafe extern "system" fn test_create_string_wrapper_free(ptr: *mut JBuffer) {
     println!("Freeing JString from Rust!");
     _ = Box::from_raw(ptr);
+}
+
+type Callback = extern "system" fn(JBuffer) -> bool;
+
+#[no_mangle]
+pub extern "system" fn test_invoke_callback(callback: Callback) -> bool {
+    let items: Vec<u8> = b"Hello from Rust Callback!".to_vec();
+    let buffer = JBuffer {
+        size: items.len() as i32,
+        data: items.leak().as_ptr()
+    };
+    callback(buffer)
 }

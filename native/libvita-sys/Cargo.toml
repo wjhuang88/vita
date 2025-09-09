@@ -8,3 +8,4 @@ edition.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
+tokio = { version = "1", features = ["full"] }
