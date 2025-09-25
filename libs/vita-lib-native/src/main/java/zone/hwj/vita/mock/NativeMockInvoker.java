@@ -9,8 +9,8 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import zone.hwj.vita.NativeCommon;
+import zone.hwj.vita.NativeTools;
+import zone.hwj.vita.def.NativeBuffer;
 
 class NativeMockInvoker {
 
@@ -25,28 +25,24 @@ class NativeMockInvoker {
     private static final MethodHandle testCreateBytesFreeHandle;
 
     private static final MethodHandle testCreateStringHandle;
-    private static final MethodHandle testCreateStringFreeHandle;
-    private static final MethodHandle testCreateStringWrapperFreeHandle;
 
     private static final MethodHandle testInvokeCallbackHandle;
 
     static {
-        helloWorldHandle = NativeCommon.makeHandle("hello_world", FunctionDescriptor.ofVoid());
-        testAddIntHandle = NativeCommon.makeHandle("test_add_int", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+        helloWorldHandle = NativeTools.makeMethodHandle("hello_world", FunctionDescriptor.ofVoid());
+        testAddIntHandle = NativeTools.makeMethodHandle("test_add_int", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
 
-        testStructHandle = NativeCommon.makeHandle("test_struct", FunctionDescriptor.of(NativeTest.LAYOUT, ValueLayout.JAVA_INT, ValueLayout.JAVA_LONG, ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_DOUBLE));
-        testStructPtrHandle = NativeCommon.makeHandle("test_struct_pointer", FunctionDescriptor.of(ValueLayout.ADDRESS.withTargetLayout(NativeTest.LAYOUT), ValueLayout.JAVA_INT, ValueLayout.JAVA_LONG, ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_DOUBLE));
-        testStructPtrFreeHandle = NativeCommon.makeHandle("test_struct_pointer_free", FunctionDescriptor.ofVoid(ValueLayout.ADDRESS.withTargetLayout(NativeTest.LAYOUT)));
+        testStructHandle = NativeTools.makeMethodHandle("test_struct", FunctionDescriptor.of(NativeTest.LAYOUT, ValueLayout.JAVA_INT, ValueLayout.JAVA_LONG, ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_DOUBLE));
+        testStructPtrHandle = NativeTools.makeMethodHandle("test_struct_pointer", FunctionDescriptor.of(ValueLayout.ADDRESS.withTargetLayout(NativeTest.LAYOUT), ValueLayout.JAVA_INT, ValueLayout.JAVA_LONG, ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_DOUBLE));
+        testStructPtrFreeHandle = NativeTools.makeMethodHandle("test_struct_pointer_free", FunctionDescriptor.ofVoid(ValueLayout.ADDRESS.withTargetLayout(NativeTest.LAYOUT)));
 
-        testCreateBytesHandle = NativeCommon.makeHandle("test_create_bytes", FunctionDescriptor.of(ValueLayout.ADDRESS));
-        testCreateBytesFreeHandle = NativeCommon.makeHandle("test_create_bytes_free", FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
+        testCreateBytesHandle = NativeTools.makeMethodHandle("test_create_bytes", FunctionDescriptor.of(ValueLayout.ADDRESS));
+        testCreateBytesFreeHandle = NativeTools.makeMethodHandle("test_create_bytes_free", FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
 
-        testCreateStringHandle = NativeCommon.makeHandle("test_create_string", FunctionDescriptor.of(ValueLayout.ADDRESS.withTargetLayout(
-                NativeTestString.LAYOUT), ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-        testCreateStringFreeHandle = NativeCommon.makeHandle("test_create_string_free", FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-        testCreateStringWrapperFreeHandle = NativeCommon.makeHandle("test_create_string_wrapper_free", FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
+        testCreateStringHandle = NativeTools.makeMethodHandle("test_create_string", FunctionDescriptor.of(ValueLayout.ADDRESS.withTargetLayout(
+                NativeBuffer.LAYOUT), ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
 
-        testInvokeCallbackHandle = NativeCommon.makeHandle("test_invoke_callback", FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS));
+        testInvokeCallbackHandle = NativeTools.makeMethodHandle("test_invoke_callback", FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS));
     }
 
     void helloWorld() {
@@ -109,22 +105,12 @@ class NativeMockInvoker {
     String testCreateString(String name) {
         try(Arena arena = Arena.ofConfined()) {
             byte[] nameBytes = name.getBytes(StandardCharsets.UTF_8);
-            MemorySegment nameSeg = arena.allocateFrom(ValueLayout.JAVA_BYTE, nameBytes);
-            MemorySegment strSeg = ((MemorySegment) testCreateStringHandle.invokeExact(nameSeg, nameBytes.length)).reinterpret(arena, ptr -> {
-                try {
-                    testCreateStringWrapperFreeHandle.invokeExact(ptr);
-                } catch (Throwable e) {
-                    throw new IllegalStateException(e);
-                }
-            });
-            NativeTestString strInst = new NativeTestString(strSeg, (ptr, size) -> {
-                try {
-                    testCreateStringFreeHandle.invokeExact(ptr, (int) size);
-                } catch (Throwable e) {
-                    throw new IllegalStateException(e);
-                }
-            });
-            return new String(strInst.getContent(arena), StandardCharsets.UTF_8);
+            final MemorySegment nameSeg = arena.allocateFrom(ValueLayout.JAVA_BYTE, nameBytes);
+            final MemorySegment bufSeg = ((MemorySegment) testCreateStringHandle.invokeExact(nameSeg, nameBytes.length));
+            System.out.println("java got: " + bufSeg.address());
+            NativeBuffer strInst = new NativeBuffer(arena, bufSeg);
+            System.out.println("ID addr in java: " + strInst.getRequestIdPtr().address());
+            return new String(strInst.copyContent(), StandardCharsets.UTF_8);
         } catch (Throwable e) {
             throw new IllegalStateException(e);
         }
@@ -132,12 +118,14 @@ class NativeMockInvoker {
 
     static class CallbackHolder {
 
-        private static String content;
+        private String content;
 
-        public static boolean testCallback(MemorySegment segment) {
+        public boolean testCallback(MemorySegment segment) {
             try(Arena arena = Arena.ofConfined()) {
-                NativeTestString strInst = new NativeTestString(segment, null);
-                content = new String(strInst.getContent(arena), StandardCharsets.UTF_8);
+                NativeBuffer strInst = new NativeBuffer(arena, segment);
+                System.out.println("id: " + strInst.getRequestId());
+                System.out.println("call back received: " + strInst.getPtr().address());
+                content = new String(strInst.copyContent(), StandardCharsets.UTF_8);
             }
             return true;
         }
@@ -145,44 +133,18 @@ class NativeMockInvoker {
 
     String testCallbackInvoke() {
         try {
-            MethodHandle cb = MethodHandles.lookup().findStatic(CallbackHolder.class, "testCallback", MethodType.methodType(boolean.class, MemorySegment.class));
-            FunctionDescriptor fc = FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, NativeTestString.LAYOUT);
-            MemorySegment cbPtr = NativeCommon.makeCallback(cb, fc);
+            CallbackHolder holder = new CallbackHolder();
+            MethodHandle target = MethodHandles.lookup().findVirtual(CallbackHolder.class, "testCallback", MethodType.methodType(boolean.class, MemorySegment.class));
+            MethodHandle cb = MethodHandles.insertArguments(target, 0, holder);
+            FunctionDescriptor fc = FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, NativeBuffer.ADDRESS_LAYOUT);
+            MemorySegment cbPtr = NativeTools.makeCallback(cb, fc);
             boolean result = (boolean) testInvokeCallbackHandle.invokeExact(cbPtr);
             if (result) {
-                return CallbackHolder.content;
+                return holder.content;
             }
             return "Error";
         } catch (Throwable e) {
             throw new IllegalStateException(e);
         }
-    }
-
-    public static void main(String[] args) {
-        NativeMockInvoker nativeMockInvoker = new NativeMockInvoker();
-        nativeMockInvoker.helloWorld();
-
-        byte[] bytes = nativeMockInvoker.testCreateBytes();
-        System.out.println("Bytes from rust: " + Arrays.toString(bytes));
-        System.out.println("String from rust: " + new String(bytes));
-
-        String str = nativeMockInvoker.testCreateString("dear java用户😉");
-        System.out.println("String from rust: " + str);
-
-        int result = nativeMockInvoker.testAddInt(4, 898);
-        System.out.println(result);
-
-        NativeTest testStruct = nativeMockInvoker.testStruct(1, 2, 3, 4);
-        int a = testStruct.getA();
-        long b = testStruct.getB();
-        float c = testStruct.getC();
-        double d = testStruct.getD();
-        System.out.println(a);
-        System.out.println(b);
-        System.out.println(c);
-        System.out.println(d);
-
-        String cbr = nativeMockInvoker.testCallbackInvoke();
-        System.out.println(cbr);
     }
 }

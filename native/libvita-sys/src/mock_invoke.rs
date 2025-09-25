@@ -1,4 +1,16 @@
-use crate::common::{JBuffer, JTestStruct};
+use std::mem::ManuallyDrop;
+
+use uuid::Uuid;
+
+use crate::common::JBuffer;
+
+#[repr(C)]
+pub struct JTestStruct {
+    pub a: i32,
+    pub b: i64,
+    pub c: f32,
+    pub d: f64,
+}
 
 #[no_mangle]
 pub extern "system" fn hello_world() {
@@ -44,34 +56,20 @@ pub extern "system" fn test_create_string(name_ptr: *mut u8, size: i32) -> *cons
     let name = unsafe {
         Vec::from_raw_parts(name_ptr, size as usize, size as usize)
     };
-    let items: Vec<u8> = [b"Hello ".to_vec(), name, " from Rust! 我们都是好朋友😄".as_bytes().to_vec()].concat();
-    println!("r: {}", items.as_ptr().addr());
-    Box::into_raw(Box::new(JBuffer {
-        size: items.len() as i32,
-        data: items.leak().as_ptr()
-    }))
+    let name = ManuallyDrop::new(name);
+    let items: Vec<u8> = [b"Hello ".to_vec(), name.to_vec(), " from Rust! 我们都是好朋友😄".as_bytes().to_vec()].concat();
+    let b = Box::new(JBuffer::new(Uuid::new_v4(), items.len() as i32, items.leak().as_ptr()));
+    let r = Box::into_raw(b);
+    println!("Created JBuffer from Rust: {:?}, managed: {}, id addr: {}", r.addr(), unsafe { &*r }.managed, unsafe { &*r }.request_id.addr());
+    r
 }
 
-#[no_mangle]
-pub unsafe extern "system" fn test_create_string_free(ptr: *mut u8, size: usize) {
-    println!("Freeing string content from Rust!");
-    _ = Vec::from_raw_parts(ptr, size, size);
-}
-
-#[no_mangle]
-pub unsafe extern "system" fn test_create_string_wrapper_free(ptr: *mut JBuffer) {
-    println!("Freeing JString from Rust!");
-    _ = Box::from_raw(ptr);
-}
-
-type Callback = extern "system" fn(JBuffer) -> bool;
+type Callback = extern "system" fn(*mut JBuffer) -> bool;
 
 #[no_mangle]
 pub extern "system" fn test_invoke_callback(callback: Callback) -> bool {
     let items: Vec<u8> = b"Hello from Rust Callback!".to_vec();
-    let buffer = JBuffer {
-        size: items.len() as i32,
-        data: items.leak().as_ptr()
-    };
-    callback(buffer)
+    let buffer = JBuffer::new(Uuid::new_v4(), items.len() as i32, items.leak().as_ptr());
+    let ptr: *mut JBuffer = Box::into_raw(Box::new(buffer));
+    callback(ptr)
 }

@@ -9,3 +9,9 @@ crate-type = ["cdylib"]
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
+actix-web = "4"
+actix = "0.13"
+bytes = "1"
+futures = "0.3.31"
+uuid = {version = "1", features = ["v4"]}
+dashmap = "6"
