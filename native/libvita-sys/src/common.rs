@@ -40,6 +40,10 @@ impl JBuffer {
     pub fn as_slice(&self) -> &[u8] {
         unsafe { std::slice::from_raw_parts(self.data, self.size as usize) }
     }
+
+    pub fn as_statics(&self) -> &'static [u8] {
+        unsafe { std::slice::from_raw_parts(self.data, self.size as usize) }
+    }
 }
 
 impl ToString for JBuffer {
@@ -61,6 +65,18 @@ impl Deref for JBuffer {
 impl AsRef<[u8]> for JBuffer {
     fn as_ref(&self) -> &[u8] {
         self.as_slice()
+    }
+}
+
+impl From<JBuffer> for Vec<u8> {
+    fn from(value: JBuffer) -> Self {
+        unsafe { Vec::from_raw_parts(value.data.cast_mut(), value.size as usize, value.size as usize) }
+    }
+}
+
+impl From<Box<JBuffer>> for Vec<u8> {
+    fn from(value: Box<JBuffer>) -> Self {
+        unsafe { Vec::from_raw_parts(value.data.cast_mut(), value.size as usize, value.size as usize) }
     }
 }
 

@@ -1,13 +1,15 @@
-mod callback;
+mod request_handler;
+
+use std::mem::{forget, ManuallyDrop};
 
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer};
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use futures::StreamExt;
 use uuid::Uuid;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender as Sender};
 
 use crate::common::JBuffer;
-
-pub use callback::*;
+use request_handler::{ResponseStream, start_request};
 
 #[no_mangle]
 pub extern "system" fn start_vita_server() {
@@ -28,8 +30,18 @@ pub extern "system" fn start_vita_server() {
     })
 }
 
+extern "system" fn send_response_ptr(resp_ptr: *mut JBuffer, send: *mut Sender<*mut JBuffer>) {
+    let sender = unsafe { Box::from_raw(send) };
+    sender.send(resp_ptr).unwrap();
+    forget(sender);
+}
+
+extern "system" fn send_end_response_ptr(send: *mut Sender<*mut JBuffer>) {
+    let _ = unsafe { Box::from_raw(send) };
+}
+
 async fn main_handle(req: HttpRequest, mut body: web::Payload) -> Result<HttpResponse, actix_web::Error> {
-    let (send, mut recv) = unbounded_channel::<JBuffer>();
+    let (send, recv) = unbounded_channel::<*mut JBuffer>();
     if let Some(handle) = start_request(req.path().to_string(), Box::into_raw(Box::new(send))) {
         while let Some(chunk) = body.next().await {
             let chunk = chunk?;
@@ -39,18 +51,17 @@ async fn main_handle(req: HttpRequest, mut body: web::Payload) -> Result<HttpRes
             let ptr = Box::into_raw(Box::new(input));
             (handle.push_handle)(ptr);
         }
-        extern "system" fn resp(resp_ptr: *const JBuffer, send: *const Sender<JBuffer>) {
-            let resp = unsafe { Box::from_raw(resp_ptr as *mut JBuffer) };
-            let sender = unsafe { Box::from_raw(send as *mut Sender<JBuffer>) };
-            sender.send(*resp).unwrap();
-        }
-        (handle.end_handle)(resp);
-        recv.recv().await.map(|buf| {
-            let body = buf.to_vec();
-            HttpResponse::Ok().body(body)
-        }).ok_or_else(|| {
-            actix_web::error::ErrorInternalServerError("No response received")
-        })
+        (handle.end_request_handle)(send_response_ptr, send_end_response_ptr); // 由java端调用send_response_ptr并回传send实例
+        let recv_stream = UnboundedReceiverStream::new(recv).map(|buf| {
+                // 返回值会在ResponseStream的drop中发送释放信号到java端，然后释放
+                let body = unsafe { ManuallyDrop::new(Box::from_raw(buf)) };
+                let body = web::Bytes::from_static(body.as_statics());
+                Ok::<_, actix_web::Error>(body)
+            });
+        let resp = HttpResponse::Ok().streaming(ResponseStream { inner: recv_stream, close_handle: handle.close_handle });
+        // java端释放对象指针
+        forget(handle);
+        Ok(resp)
     } else {
         Err(actix_web::error::ErrorNotFound(format!("No request handle registered for path: {}", req.path())))
     }
