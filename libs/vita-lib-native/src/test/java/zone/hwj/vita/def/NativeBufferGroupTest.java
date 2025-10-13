@@ -17,15 +17,15 @@ class NativeBufferGroupTest {
         try(Arena arena = Arena.ofConfined()) {
             byte[] bb1 = ("Hello ").getBytes(StandardCharsets.UTF_8);
             MemorySegment bm1 = arena.allocateFrom(ValueLayout.JAVA_BYTE, bb1);
-            var b1 = NativeBuffer.fromParts(arena, null, bb1.length, bm1, false);
+            var b1 = NativeBuffer.from(arena, null, bb1.length, bm1, false);
 
             byte[] bb2 = ("我的朋友🤣").getBytes(StandardCharsets.UTF_8);
             MemorySegment bm2 = arena.allocateFrom(ValueLayout.JAVA_BYTE, bb2);
-            var b2 = NativeBuffer.fromParts(arena, null, bb2.length, bm2, false);
+            var b2 = NativeBuffer.from(arena, null, bb2.length, bm2, false);
 
             byte[] bb3 = (", こんにちは").getBytes(StandardCharsets.UTF_8);
             MemorySegment bm3 = arena.allocateFrom(ValueLayout.JAVA_BYTE, bb3);
-            var b3 = NativeBuffer.fromParts(arena, null, bb3.length, bm3, false);
+            var b3 = NativeBuffer.from(arena, null, bb3.length, bm3, false);
 
             try(NativeBufferGroup group = NativeBufferGroup.of(b1)) {
                 String s = IoUtils.toUtf8String(group);

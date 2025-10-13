@@ -16,7 +16,7 @@ public class PathHolder {
     public static PathHolder of(Arena arena, String pattern) {
         byte[] resultBytes = pattern.getBytes(StandardCharsets.UTF_8);
         MemorySegment resultSeg = arena.allocateFrom(ValueLayout.JAVA_BYTE, resultBytes);
-        MemorySegment pathSeg = NativeBuffer.fromParts(arena, null, resultBytes.length, resultSeg, false).getPtr();
+        MemorySegment pathSeg = NativeBuffer.from(arena, null, resultBytes.length, resultSeg, false).getPtr();
         return new PathHolder(pathSeg);
     }
 

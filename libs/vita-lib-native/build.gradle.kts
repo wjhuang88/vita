@@ -18,7 +18,7 @@ dependencies {
 
     rust(project(":native:libvita-sys"))
     api("fr.stardustenterprises:yanl:0.8.1")
-
+    api("com.github.spotbugs:spotbugs-annotations:4.9.6")
     api("io.projectreactor:reactor-core:3.7.9")
     api("com.softwaremill.jox:channels:1.0.1")
 

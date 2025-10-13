@@ -14,7 +14,7 @@ import reactor.core.publisher.Flux;
 import zone.hwj.vita.NativeTools;
 import zone.hwj.vita.api.RequestBodyHandler;
 
-public class RequestHandleEntry {
+public class RequestHandleEntry {  // TODO: 封装清理逻辑，提升自洽性
     public static final MemoryLayout LAYOUT = MemoryLayout.structLayout(
             ValueLayout.ADDRESS.withName("push_handle"),
             ValueLayout.ADDRESS.withName("end_request_handle"),
@@ -76,6 +76,7 @@ public class RequestHandleEntry {
         requestBuffer.appendBuffer(new NativeBuffer(arena, chunk));
     }
 
+    // TODO: 将同步的Request接收方式改为异步
     private void invokeEnd(MemorySegment responseCall, MemorySegment endResponseCall) {
         Thread.ofVirtual().name("vita-worker-", 0).start(() -> {
 
@@ -88,7 +89,8 @@ public class RequestHandleEntry {
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
 
             try {
-                Flux<NativeBuffer> responseBody = bodyHandler.apply(this.requestBuffer);
+                Flux<NativeBuffer> responseBody = Flux.create(sink -> bodyHandler.accept(this.requestBuffer, sink));
+                // TODO: 添加异常处理传递到rust端并返回给客户端的逻辑
                 responseBody.subscribe(buffer -> {
                     try {
                         responseInvoke.invokeExact(buffer.getPtr(), sender);

@@ -25,6 +25,7 @@ public class NativeTools {
         new NativeLoader.Builder().build().loadLibrary("vita", false);
         LOOKUP = SymbolLookup.loaderLookup();
         LINKER = Linker.nativeLinker();
+        // pub unsafe extern "system" fn free_jbuffer(ptr: *mut JBuffer)
         FREE_HANDLE = makeMethodHandle("free_jbuffer", FunctionDescriptor.ofVoid(NativeBuffer.ADDRESS_LAYOUT));
     }
 

@@ -3,11 +3,13 @@ package zone.hwj.vita.def;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import zone.hwj.vita.tools.pair.Pair;
 
 public class NativeBufferGroup extends InputStream {
     private final List<Node> buffers = new ArrayList<>();
-    private int lastEndOffset = 0;
+    private volatile int count = 0;
     private int pos = 0;
 
     private Node lastAccessed;
@@ -22,11 +24,15 @@ public class NativeBufferGroup extends InputStream {
         return new NativeBufferGroup(buffers);
     }
 
-    public void appendBuffer(NativeBuffer buffer) {
-        int offset = lastEndOffset;
+    public static Mono<NativeBufferGroup> of(Flux<NativeBuffer> buffers) {
+        return buffers.collect(NativeBufferGroup::new, NativeBufferGroup::appendBuffer);
+    }
+
+    public synchronized void appendBuffer(NativeBuffer buffer) {
+        int offset = count;
         Node node = Node.of(offset, buffer);
         buffers.add(node);
-        lastEndOffset = node.end();
+        count = node.end();
     }
 
     public int readAt(int index) {
@@ -42,8 +48,8 @@ public class NativeBufferGroup extends InputStream {
     }
 
     private Pair<Integer, Integer> idx(int i) {
-        if (i < 0 || i > lastEndOffset) {
-            throw new IndexOutOfBoundsException("Index: " + i + ", should be [0, " + lastEndOffset + "]");
+        if (i < 0 || i > count) {
+            throw new IndexOutOfBoundsException("Index: " + i + ", should be [0, " + count + "]");
         }
 
         int low = 0;
@@ -65,7 +71,12 @@ public class NativeBufferGroup extends InputStream {
 
     @Override
     public int read() {
-        return pos < lastEndOffset ? readAt(pos++) : -1;
+        return pos < count ? readAt(pos++) : -1;
+    }
+
+    @Override
+    public synchronized int available() {
+        return count - pos;
     }
 
     private record Node(int start, int end, NativeBuffer buf) {

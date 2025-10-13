@@ -53,7 +53,7 @@ public class NativeBuffer {
         this.dataSegment = ((MemorySegment) DATA.get(segment)).reinterpret((int) SIZE.get(segment), arena, null);
     }
 
-    public static NativeBuffer fromParts(Arena arena, MemorySegment idSeg, int size, MemorySegment dataSeg, boolean dataExternal) {
+    public static NativeBuffer from(Arena arena, MemorySegment idSeg, int size, MemorySegment dataSeg, boolean dataExternal) {
         MemorySegment bufferSeg = arena.allocate(LAYOUT);
         if (idSeg != null) {
             REQUEST_ID.set(bufferSeg, idSeg);
