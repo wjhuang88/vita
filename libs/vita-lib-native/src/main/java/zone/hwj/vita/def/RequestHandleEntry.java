@@ -10,9 +10,12 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.VarHandle;
+import java.util.ArrayList;
+import java.util.List;
 import reactor.core.publisher.Flux;
 import zone.hwj.vita.NativeTools;
-import zone.hwj.vita.api.RequestBodyHandler;
+import zone.hwj.vita.api.RequestHandler;
+import zone.hwj.vita.tools.SlicedBufferPool;
 
 public class RequestHandleEntry {  // TODO: 封装清理逻辑，提升自洽性
     public static final MemoryLayout LAYOUT = MemoryLayout.structLayout(
@@ -36,7 +39,7 @@ public class RequestHandleEntry {  // TODO: 封装清理逻辑，提升自洽性
         try {
             Lookup lookup = MethodHandles.lookup();
             START_METHOD = lookup.findStatic(
-                    RequestHandleEntry.class, "invokeStart", MethodType.methodType(MemorySegment.class, RequestBodyHandler.class, MemorySegment.class));
+                    RequestHandleEntry.class, "invokeStart", MethodType.methodType(MemorySegment.class, RequestHandler.class, MemorySegment.class));
             PUSH_METHOD = lookup.findVirtual(
                     RequestHandleEntry.class, "invokePush", MethodType.methodType(void.class, MemorySegment.class));
             END_METHOD = lookup.findVirtual(RequestHandleEntry.class, "invokeEnd", MethodType.methodType(void.class, MemorySegment.class, MemorySegment.class));
@@ -51,24 +54,24 @@ public class RequestHandleEntry {  // TODO: 封装清理逻辑，提升自洽性
     // 从rust端传入的sender指针，用来在回调中回传给rust端
     private final MemorySegment sender;
 
-    private final RequestBodyHandler bodyHandler;
+    private final RequestHandler<?, ?> bodyHandler;
 
     private final Arena arena;
 
     // 在rust端每个请求创建一个实例，不在java端创建实例
-    private RequestHandleEntry(MemorySegment sender, RequestBodyHandler bodyHandler) {
+    private RequestHandleEntry(MemorySegment sender, RequestHandler<?, ?> bodyHandler) {
         this.sender = sender;
         this.bodyHandler = bodyHandler;
         this.arena = Arena.ofShared();
     }
 
-    public static MemorySegment createStartPtr(Arena globalArena, RequestBodyHandler bodyHandler) {
+    public static MemorySegment createStartPtr(Arena globalArena, RequestHandler<?, ?> bodyHandler) {
         FunctionDescriptor fc = FunctionDescriptor.of(ADDRESS_LAYOUT, ValueLayout.ADDRESS);
         MethodHandle cb = MethodHandles.insertArguments(START_METHOD, 0, bodyHandler);
         return NativeTools.makeCallback(globalArena, cb, fc);
     }
 
-    private static MemorySegment invokeStart(RequestBodyHandler bodyHandler, MemorySegment sender) {
+    private static MemorySegment invokeStart(RequestHandler<?, ?> bodyHandler, MemorySegment sender) {
         return new RequestHandleEntry(sender, bodyHandler).allocatePtr();
     }
 
@@ -89,19 +92,25 @@ public class RequestHandleEntry {  // TODO: 封装清理逻辑，提升自洽性
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
 
             try {
-                Flux<NativeBuffer> responseBody = Flux.create(sink -> bodyHandler.accept(this.requestBuffer, sink));
+                final Flux<NativeBuffer> responseBody = Flux.create(sink -> bodyHandler.accept(this.requestBuffer, sink));
+                final List<NativeBuffer> bufCache = new ArrayList<>();
                 // TODO: 添加异常处理传递到rust端并返回给客户端的逻辑
                 responseBody.subscribe(buffer -> {
                     try {
                         responseInvoke.invokeExact(buffer.getPtr(), sender);
                     } catch (Throwable e) {
                         throw new RuntimeException(e);
+                    } finally {
+                        bufCache.add(buffer);
                     }
                 }, _ -> {}, () -> {
                     try {
                         endResponseInvoke.invokeExact(sender);
                     } catch (Throwable e) {
                         throw new RuntimeException(e);
+                    } finally {
+                        bufCache.forEach(SlicedBufferPool.common()::release);
+                        bufCache.clear();
                     }
                 });
             } catch (Throwable e) {

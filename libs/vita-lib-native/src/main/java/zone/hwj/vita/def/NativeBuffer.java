@@ -100,6 +100,11 @@ public class NativeBuffer {
         return dataPtr.get(ValueLayout.JAVA_BYTE, index);
     }
 
+    public void write(int srcOffset, int desOffset, int len, byte[] bytes) {
+        MemorySegment dataPtr = getDataPtr();
+        dataPtr.asByteBuffer().put(desOffset, bytes, srcOffset, len);
+    }
+
     public byte[] copyContent() {
         if (bytes == null) {
             int size = getSize();

@@ -18,11 +18,13 @@ dependencies {
 
     rust(project(":native:libvita-sys"))
     api("fr.stardustenterprises:yanl:0.8.1")
-    api("com.github.spotbugs:spotbugs-annotations:4.9.6")
     api("io.projectreactor:reactor-core:3.7.9")
     api("com.softwaremill.jox:channels:1.0.1")
+    api("com.github.spotbugs:spotbugs-annotations:4.9.6") {
+        exclude("org.junit", "junit-bom")
+    }
 
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
+    testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }
 
