@@ -103,7 +103,16 @@ public class RequestHandleEntry {  // TODO: 封装清理逻辑，提升自洽性
                     } finally {
                         bufCache.add(buffer);
                     }
-                }, _ -> {}, () -> {
+                }, t -> {
+                    try {
+                        endResponseInvoke.invokeExact(sender);
+                    } catch (Throwable e) {
+                        throw new RuntimeException(e);
+                    } finally {
+                        bufCache.forEach(SlicedBufferPool.common()::release);
+                        bufCache.clear();
+                    }
+                }, () -> {
                     try {
                         endResponseInvoke.invokeExact(sender);
                     } catch (Throwable e) {

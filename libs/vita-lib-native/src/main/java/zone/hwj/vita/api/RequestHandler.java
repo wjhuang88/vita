@@ -40,10 +40,9 @@ public interface RequestHandler<REQ, RES> extends BiConsumer<InputStream, FluxSi
         try {
             REQ decoded = decoder().decode(is);
             encoder().encode(handle(decoded), sink);
+            sink.complete();
         } catch (Throwable e) {
             sink.error(e);
-            return;
         }
-        sink.complete();
     }
 }

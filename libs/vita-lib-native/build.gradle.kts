@@ -20,6 +20,7 @@ dependencies {
     api("fr.stardustenterprises:yanl:0.8.1")
     api("io.projectreactor:reactor-core:3.7.9")
     api("com.softwaremill.jox:channels:1.0.1")
+    api("com.alibaba:fastjson:2.0.59")
     api("com.github.spotbugs:spotbugs-annotations:4.9.6") {
         exclude("org.junit", "junit-bom")
     }

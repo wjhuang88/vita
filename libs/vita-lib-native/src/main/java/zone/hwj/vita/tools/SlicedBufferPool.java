@@ -30,6 +30,32 @@ public class SlicedBufferPool { // TODO: 目前是模拟逻辑，需提供真实
         }
     }
 
+    public int getBlockSize() {
+        return blockSize;
+    }
+
+    public List<NativeBuffer> acquire(int size) {
+
+        if (size <= blockSize) {
+            NativeBuffer single = pollOrCreate(size);
+            return List.of(single);
+        }
+
+        List<NativeBuffer> buffers = new ArrayList<>(size / blockSize + 1);
+        int remaining = size;
+        while (remaining > blockSize) {
+            NativeBuffer block = pollOrCreate(blockSize);
+            remaining -= blockSize;
+            buffers.add(block);
+        }
+        if (remaining > 0) {
+            NativeBuffer lastBlock = pollOrCreate(remaining);
+            buffers.add(lastBlock);
+        }
+
+        return buffers;
+    }
+
     public List<NativeBuffer> acquire(byte[] bytes) {
 
         int len = bytes.length;
@@ -56,6 +82,14 @@ public class SlicedBufferPool { // TODO: 目前是模拟逻辑，需提供真实
         }
 
         return buffers;
+    }
+
+    public NativeBuffer resize(NativeBuffer buffer, int newSize) {
+        if (newSize > blockSize) {
+            throw new IllegalArgumentException("New size should be less than blockSize: " + blockSize);
+        }
+        MemorySegment newSeg = buffer.getDataPtr().asSlice(0, newSize);
+        return NativeBuffer.from(arena, null, newSize, newSeg, false);
     }
 
     public void release(NativeBuffer buffer) {

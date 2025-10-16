@@ -1,10 +1,12 @@
 package zone.hwj.vita.mock;
 
 import java.util.Arrays;
+import java.util.Map;
 import zone.hwj.vita.NativeManager;
 import zone.hwj.vita.api.RequestHandler;
 import zone.hwj.vita.api.Routes;
 import zone.hwj.vita.codec.BufferTranslator;
+import zone.hwj.vita.codec.impl.JsonTranslator;
 import zone.hwj.vita.codec.impl.StringTranslator;
 
 public class MockRunner {
@@ -36,9 +38,14 @@ public class MockRunner {
         System.out.println(cbr);
 
         NativeManager manager = NativeManager.getInstance();
-        BufferTranslator<String> translator = new StringTranslator();
+        BufferTranslator<String> strTranslator = new StringTranslator();
+        BufferTranslator<Object> jsonTranslator = new JsonTranslator();
         Routes routes = Routes.builder()
-                .route("/123", RequestHandler.make(translator, translator, req -> (req + " form java!\n").repeat(3)))
+                .route("/123", RequestHandler.make(strTranslator, strTranslator, req -> (req + " form java!\n").repeat(3)))
+                .route("/test", RequestHandler.make(jsonTranslator, jsonTranslator, req -> {
+                    System.out.println(req);
+                    return Map.of("testKey", "testValue", "testKey2", 123);
+                }))
                 .build();
         manager.startServer(routes);
     }
