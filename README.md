@@ -71,11 +71,38 @@ cargo build --release
 - `native/` - Rust workspace（`libvita-sys`）
 - `gradle.properties` - 构建属性
 
-## 开发者提示
+## 使用 Docker 构建（CI / 隔离构建）
 
-- 若 native 导入失败：确认 `cargo` 在 PATH 中且已安装目标工具链。
-- 若要尝试 JDK 原生接口：请确保使用支持相应 API 的 JDK 版本，并在本地测试不同调用方式的延迟与开销。
-- 本地开发建议：先单独在 `native/` 使用 `cargo` 编译并运行基准，然后再用 Gradle 打包到 Java 模块进行集成测试。
+仓库包含一个方便的脚本 `build.sh`（位于仓库根），该脚本使用 `Dockerfile.build` 在容器内执行构建以确保隔离的、可重复的构建环境。脚本逻辑简要如下：
+
+- 在项目根目录使用 `Dockerfile.build` 构建一个临时镜像（标签如 `framework-builder:<random>`）。
+- 运行容器并在容器内部执行 `/apps/gradlew clean build`（项目目录在容器内挂载为 `/apps`）。
+
+在 macOS（zsh）上运行示例：
+
+```bash
+# 使脚本可执行
+chmod +x ./build.sh
+
+# 在仓库根运行（脚本会构建镜像并在容器中执行 gradle build）
+./build.sh
+```
+
+注意事项：
+
+- `build.sh` 使用 `readlink -f` 来解析脚本绝对路径，macOS 自带的 `readlink` 不支持 `-f` 参数；如果在 macOS 上遇到问题，可以替换为 `greadlink -f`（通过 `brew install coreutils` 获取）或修改脚本使用其他解析方法。例如：
+
+```bash
+# 在 macOS 上可先安装 coreutils
+brew install coreutils
+
+# 然后保证脚本使用 greadlink
+./build.sh
+```
+
+- 需要 Docker 引擎可用并且用户有足够权限运行 docker。
+
+该容器化构建方式适用于 CI 环境或本地需要隔离依赖（例如当本机没有合适的 Rust / Zig / cross 工具链）时使用。你可以把该流程集成到 CI（GitHub Actions）中，使用 Docker 执行统一的构建步骤。
 
 ## 联系与贡献
 
@@ -86,12 +113,3 @@ cargo build --release
 ## 许可
 
 本项目使用 Apache License 2.0（详见仓库根目录 `LICENSE` 文件）。
-
----
-
-如果你希望我把 README 再补充：
-
-- 添加示例代码片段（Java 侧加载 native 的样例、简单的 HTTP handler 示例）
-- 提供一个 GitHub Actions CI 模板，用于多平台构建与发布 native 资产
-
-告诉我你优先需要的扩展项，我会继续实现。 
