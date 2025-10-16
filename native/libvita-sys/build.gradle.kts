@@ -23,22 +23,22 @@ rust {
             }
         }
 
-//        create("win64") {
-//            target = "x86_64-pc-windows-msvc"
-//            outputName = "${libName}64.dll"
-//            command = if(os.isWindows) "cargo" else "cargo-xwin"
-//        }
-//
-//        create("linux64") {
-//            target = "x86_64-unknown-linux-gnu"
-//            outputName = "lib${libName}64.so"
-//            command = "cargo-zigbuild"
-//        }
-//
-//        create("linux64Aarch64") {
-//            target = "aarch64-unknown-linux-gnu"
-//            outputName = "lib${libName}64.so"
-//            command = "cargo-zigbuild"
-//        }
+        create("win64") {
+            target = "x86_64-pc-windows-msvc"
+            outputName = "${libName}64.dll"
+            command = if(os.isWindows) "cargo" else "cargo-xwin"
+        }
+
+        create("linux64") {
+            target = "x86_64-unknown-linux-gnu"
+            outputName = "lib${libName}64.so"
+            command = "cargo-zigbuild"
+        }
+
+        create("linux64Aarch64") {
+            target = "aarch64-unknown-linux-gnu"
+            outputName = "lib${libName}64.so"
+            command = "cargo-zigbuild"
+        }
     }
 }
