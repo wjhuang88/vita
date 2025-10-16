@@ -1,0 +1,44 @@
+FROM azul/zulu-openjdk:24-latest
+
+ENV XWIN_CACHE_DIR $HOME/.xwin
+
+ARG TARGETARCH
+
+# 安装rust编译需要的环境
+RUN apt-get -qq update && \
+    apt-get -qq -y --no-install-recommends install curl build-essential lld wget && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# 安装zig编译器辅助rust代码的交叉编译
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+    wget https://ziglang.org/builds/zig-linux-aarch64-0.14.0-dev.1831+ce5a5c361.tar.xz -O $HOME/zig.tar.xz; \
+    tar -xJf $HOME/zig.tar.xz -C $HOME; \
+    mv $HOME/zig-linux-aarch64-0.14.0-dev.1831+ce5a5c361/* $HOME/.cargo/bin/; \
+  else \
+    wget https://ziglang.org/builds/zig-linux-x86_64-0.14.0-dev.1831+ce5a5c361.tar.xz -O $HOME/zig.tar.xz; \
+    tar -xJf $HOME/zig.tar.xz -C $HOME; \
+    mv $HOME/zig-linux-x86_64-0.14.0-dev.1831+ce5a5c361/* $HOME/.cargo/bin/; \
+  fi
+
+ENV PATH /root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# 添加rust交叉编译需要的环境配置
+RUN rustup target add x86_64-pc-windows-msvc x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu && \
+    cargo install cargo-xwin cargo-zigbuild && \
+    echo '[target.x86_64-pc-windows-msvc]' > $HOME/.cargo/config.toml && \
+    echo 'linker = "lld"' >> $HOME/.cargo/config.toml && \
+    echo 'rustflags=["-Lnative=$HOME/.xwin/xwin/crt/lib/x86_64", "-Lnative=$HOME/.xwin/xwin/sdk/lib/um/x86_64", "-Lnative=$HOME/.xwin/xwin/sdk/lib/ucrt/x86_64"]' >> $HOME/.cargo/config.toml
+
+# 缓存gradle和xwin
+COPY ./gradle /temp/gradle
+COPY ./gradlew /temp/gradlew
+RUN /temp/gradlew && \
+  rm -rf /temp && \
+  mkdir /tmp/cargo_tmp && \
+  cd /tmp/cargo_tmp && \
+  cargo new hello && \
+  cd hello && \
+  cargo-xwin check --target x86_64-pc-windows-msvc && \
+  rm -rf /tmp/cargo_tmp
+
+WORKDIR /apps
