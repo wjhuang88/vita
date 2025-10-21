@@ -12,7 +12,7 @@ import zone.hwj.vita.def.NativeBuffer;
 import zone.hwj.vita.def.PathHolder;
 import zone.hwj.vita.def.RequestHandleEntry;
 
-public class NativeManager {
+public class Vita {
 
     // pub extern "system" fn register_request_handle(path_buf: *const JBuffer, start_handle: StartHandle)
     private static final MethodHandle registerRequestHandle = NativeTools.makeMethodHandle("register_request_handle", FunctionDescriptor.ofVoid(
@@ -23,15 +23,15 @@ public class NativeManager {
     // pub extern "system" fn start_vita_server()
     private static final MethodHandle startServerHandle = NativeTools.makeMethodHandle("start_vita_server", FunctionDescriptor.ofVoid());
 
-    public static NativeManager getInstance() {
+    public static Vita getInstance() {
         final class Holder {
-            private static final NativeManager INSTANCE = new NativeManager();
+            private static final Vita INSTANCE = new Vita();
         }
 
         return Holder.INSTANCE;
     }
 
-    private NativeManager() {}
+    private Vita() {}
 
     public void startServer(Routes routes) {
         try(Arena arena = Arena.ofShared()) {

@@ -11,5 +11,7 @@ pluginManagement {
 
 rootProject.name = "vita"
 
-include("libs:vita-lib-native")
 include("native:libvita-sys")
+include("libs:vita-lib-native")
+include("server")
+include("examples:mock-server")

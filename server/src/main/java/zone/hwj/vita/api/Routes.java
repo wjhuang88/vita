@@ -14,7 +14,7 @@ public interface Routes {
 
     interface Route {
         String pattern();
-        RequestHandler handler();
+        RequestHandler<?, ?> handler();
     }
 
     class Builder {
@@ -24,7 +24,7 @@ public interface Routes {
             return () -> routeList;
         }
 
-        public Builder route(String pattern, RequestHandler handler) {
+        public Builder route(String pattern, RequestHandler<?, ?> handler) {
             routeList.add(new Route() {
                 @Override
                 public String pattern() {
@@ -32,7 +32,7 @@ public interface Routes {
                 }
 
                 @Override
-                public RequestHandler handler() {
+                public RequestHandler<?, ?> handler() {
                     return handler;
                 }
             });

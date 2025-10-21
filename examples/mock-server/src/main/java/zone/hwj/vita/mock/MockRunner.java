@@ -2,7 +2,7 @@ package zone.hwj.vita.mock;
 
 import java.util.Arrays;
 import java.util.Map;
-import zone.hwj.vita.NativeManager;
+import zone.hwj.vita.Vita;
 import zone.hwj.vita.api.RequestHandler;
 import zone.hwj.vita.api.Routes;
 import zone.hwj.vita.codec.BufferTranslator;
@@ -37,7 +37,7 @@ public class MockRunner {
         String cbr = nativeMockInvoker.testCallbackInvoke();
         System.out.println(cbr);
 
-        NativeManager manager = NativeManager.getInstance();
+        Vita manager = Vita.getInstance();
         BufferTranslator<String> strTranslator = new StringTranslator();
         BufferTranslator<Object> jsonTranslator = new JsonTranslator();
         Routes routes = Routes.builder()
