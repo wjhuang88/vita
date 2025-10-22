@@ -9,7 +9,7 @@ use tokio::sync::mpsc::UnboundedSender as Sender;
 
 pub type StartHandle = extern "system" fn(*mut Sender<*mut JBuffer>) -> *const RequestHandleEntry;
 
-static HANDLE_MAP: LazyLock<dashmap::DashMap<String, StartHandle>> = LazyLock::new(|| dashmap::DashMap::new());
+pub(crate) static HANDLE_MAP: LazyLock<dashmap::DashMap<String, StartHandle>> = LazyLock::new(|| dashmap::DashMap::new());
 
 pub(crate) struct ResponseStream<S> {
     pub(crate) inner: S,
@@ -46,8 +46,7 @@ pub extern "system" fn register_request_handle(path_buf: *const JBuffer, start_h
     forget(path);
 }
 
-pub(crate) fn start_request(path: String, send: *mut Sender<*mut JBuffer>) -> Option<Box<RequestHandleEntry>> {
-    let wrap = HANDLE_MAP.get(&path);
-    wrap.map(|start_handle| start_handle(send))
-        .map(|ptr| unsafe { Box::from_raw(ptr as *mut RequestHandleEntry) })
+pub(crate) fn start_request(handler: StartHandle, send: *mut Sender<*mut JBuffer>) -> Box<RequestHandleEntry> {
+    let raw_entry = handler(send);
+    unsafe { Box::from_raw(raw_entry as *mut RequestHandleEntry) }
 }

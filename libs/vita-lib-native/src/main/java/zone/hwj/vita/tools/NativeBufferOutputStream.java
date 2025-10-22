@@ -29,13 +29,11 @@ public class NativeBufferOutputStream extends OutputStream {
             flush();
         }
 		buffer.getDataPtr().set(ValueLayout.JAVA_BYTE, this.writerIndex, (byte) b);
-		System.out.println(this.writerIndex + ": " + (char) b);
 		this.writerIndex++;
 	}
 
 	@Override
 	public void flush() {
-		System.out.println(writerIndex);
 		emitter.next(factory.resize(buffer, writerIndex));
 		if (!closed) {
 			buffer = factory.acquire(bufferSize).getFirst();
