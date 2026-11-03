@@ -17,6 +17,7 @@ Confirmed from current upstream documentation/release material:
 - Updating Ventoy preserves files in the first partition.
 - `VTOY_DEFAULT_SEARCH_ROOT` can restrict image discovery to a Vita-owned `/iso` tree.
 - `VTOY_DEFAULT_IMAGE` plus menu timeout can make the Vita Live image the default path while still exposing user images.
+- `VTOY_SECONDARY_BOOT_MENU=0` removes the otherwise-default secondary mode menu from Vita's unattended default boot path.
 - Menu aliases can present a product-facing name instead of a raw ISO filename.
 - Ventoy reserves its first two partitions; optional reserved space can be created at the end of the disk for extra partitions.
 - Ventoy is GPLv3+; Vita release packaging must preserve the applicable license/corresponding-source obligations.
@@ -28,6 +29,7 @@ Primary references:
 - https://www.ventoy.net/en/doc_start.html
 - https://www.ventoy.net/en/doc_disk_layout.html
 - https://www.ventoy.net/en/plugin_control.html
+- https://www.ventoy.net/en/doc_secondary_boot_menu.html
 - https://www.ventoy.net/en/doc_search_path.html
 - https://www.ventoy.net/en/plugin_menualias.html
 - https://www.ventoy.net/en/doc_secure.html
@@ -81,23 +83,48 @@ This is a substrate boundary, not a product dependency inversion: Ventoy owns im
 
 1. Consume a pinned upstream Ventoy release without source modifications in Phase 1.
 2. Keep user images under `/iso`; keep Talos/Vita runtime data outside that search root.
-3. Put Vita Live ISO at a stable path such as `/iso/vita/vita-live.iso` and configure it as the default image.
+3. Put Vita Live ISO at `/iso/vita/vita-live.iso`, configure it as the default image, and disable the secondary boot-mode menu on the default unattended path.
 4. Do not use the image-list whitelist for normal operation because users must be able to add ISO files without rebuilding configuration.
 5. Do not depend on a transient Linux device node to locate the portable data partition. The Live OS must identify the Vita medium using a filesystem label and/or project marker with ambiguity checks.
 6. Treat Secure Boot as a separate validation track. No "Secure Boot supported" product claim until Vita's complete chain and enrollment behavior are tested and documented.
 7. Releases embedding Ventoy must carry third-party license/source compliance material; modifications to Ventoy require a separate decision and review.
 
-## Validation status
+## Executed validation
 
-Confirmed:
-- Upstream capability and layout evidence supports the hybrid architecture.
-- Current Ventoy configuration mechanisms can make Vita the default image while retaining dynamic ISO discovery.
-- Pure GRUB loopback is not a generic ISO-compatibility solution.
+GitHub Actions run `41659336430`, job `boot-chain-prototype`, executed on a GitHub-hosted Ubuntu 26.04.1 runner at Vita commit `68c25efd89aa12ca0a611fbce4ea6605907cbebd`.
 
-Not yet proven:
-- QEMU BIOS/UEFI boot of a Vita-staged Ventoy disk image.
-- Default-image auto-selection into the Vita Live ISO.
-- Physical firmware compatibility.
-- Secure Boot behavior.
+The test is intentionally disposable and target-guarded:
+- creates a 768 MiB temporary raw file;
+- attaches only a `/dev/loopN` device whose kernel backing file is re-verified against that exact raw file;
+- downloads Ventoy 1.1.18 and verifies SHA-256 before extraction/use;
+- installs Ventoy only after the loop/backing-file safety checks pass;
+- generates deterministic GRUB probe ISOs;
+- stages Vita configuration plus both Vita and user ISO fixtures;
+- boots the raw disk under QEMU and requires serial markers.
 
-Current execution-environment blocker observed on 2026-11-03: `qemu-system-x86_64`, `grub-mkrescue`, `grub-install`, `xorriso`, `mksquashfs`, `cargo`, and `rustc` are unavailable. VM proof therefore remains an explicit I001 gate rather than being inferred from documentation.
+Observed evidence:
+
+```text
+Install Ventoy to /dev/loop0 successfully finished.
+VITA_BOOT_PROBE_OK mode=bios marker=VITA_BOOT_OK
+VITA_BOOT_PROBE_OK mode=uefi marker=VITA_BOOT_OK
+VITA_BOOT_PROBE_OK mode=bios marker=VITA_USER_ISO_BOOT_OK
+VITA_I001_BOOT_CHAIN_OK ventoy=1.1.18
+```
+
+This proves the minimum Phase 1 chain:
+- Ventoy can be safely staged onto a verified loop-backed disposable disk in CI;
+- Vita's configured default image automatically reaches the project-owned ISO under legacy BIOS;
+- the same default image reaches the project-owned ISO under x86_64 UEFI/OVMF;
+- a second user ISO in `/iso` remains independently bootable after changing the selected default.
+
+## Remaining validation outside VITA-001-A
+
+Not yet claimed:
+- physical USB/firmware compatibility;
+- Secure Boot end-to-end behavior and signing/enrollment policy;
+- representative third-party Linux distribution compatibility beyond the deterministic probe ISO;
+- the final Vita Live OS kernel/initramfs/rootfs rather than the I001 boot stub;
+- a release-grade firmware/device matrix.
+
+Those belong to VITA-001-B/C/H and later release-hardening work. The host environment used to author the first pass did not include the boot toolchain; CI now provides the authoritative VM proof instead of inferring success from documentation.
