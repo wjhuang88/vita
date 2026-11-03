@@ -7,7 +7,10 @@ on:
     paths:
       - ".github/workflows/i001-foundation.yml"
       - "prototypes/interaction-runtime/**"
+      - "prototypes/boot/**"
+      - "scripts/ci/validate_i001_boot.sh"
       - "docs/reference/TALOS-INTEGRATION.md"
+      - "docs/reference/BOOT-STRATEGY-RESEARCH.md"
       - "docs/backlog/active/VITA-001-D-talos-interaction-runtime.md"
       - "scripts/validate_project_governance.sh"
       - ".agent-governance/manifest.yaml"
@@ -15,7 +18,10 @@ on:
     paths:
       - ".github/workflows/i001-foundation.yml"
       - "prototypes/interaction-runtime/**"
+      - "prototypes/boot/**"
+      - "scripts/ci/validate_i001_boot.sh"
       - "docs/reference/TALOS-INTEGRATION.md"
+      - "docs/reference/BOOT-STRATEGY-RESEARCH.md"
       - "docs/backlog/active/VITA-001-D-talos-interaction-runtime.md"
       - "scripts/validate_project_governance.sh"
       - ".agent-governance/manifest.yaml"
@@ -42,3 +48,11 @@ jobs:
       - name: Run Vita Talos embedding prototype
         working-directory: prototypes/interaction-runtime
         run: cargo +1.99.0 run
+
+  boot-chain-prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate disposable-image Ventoy to Vita boot chain
+        run: scripts/ci/validate_i001_boot.sh
