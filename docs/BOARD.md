@@ -4,6 +4,7 @@
 
 | Item | State | Owner Doc | Gate |
 | --- | --- | --- | --- |
-| VITA-001 | Now / Refinement | `backlog/active/VITA-001-agent-native-usb-os.md` | Child stories are ready and blocking spikes resolved |
-| VITA-001-A | Next / Spike | `backlog/active/VITA-001-A-boot-strategy-spike.md` | Evidence selects boot strategy and ADR records it |
-| I001 | Planned | `iterations/I001-foundation.md` | Start only after boot strategy and Talos Core integration assumptions are explicit |
+| I001 | Active | `iterations/I001-foundation.md` | Talos runtime CI proof + disposable-image QEMU boot proof |
+| VITA-001-A | Active / Spike | `backlog/active/VITA-001-A-boot-strategy-spike.md` | QEMU proof validates ADR-0004 minimum boot path |
+| VITA-001-D | Ready | `backlog/active/VITA-001-D-talos-interaction-runtime.md` | CI executes the `talos-runtime` host prototype, then Live console integration can start |
+| VITA-001 | Now / Refinement | `backlog/active/VITA-001-agent-native-usb-os.md` | Foundation gates close and child stories become executable |

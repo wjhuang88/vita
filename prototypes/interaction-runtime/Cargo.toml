@@ -1,0 +1,11 @@
+[package]
+name = "vita-interaction-prototype"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+async-trait = "0.1.92"
+serde_json = "1.0.151"
+talos-runtime = { git = "https://github.com/wjhuang88/talos.git", rev = "261602242e49e6f921f5d3e4eac96eebbe92f8b3" }
+tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread", "sync", "time"] }

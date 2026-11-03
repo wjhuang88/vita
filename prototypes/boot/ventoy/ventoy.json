@@ -1,0 +1,13 @@
+{
+  "control": [
+    { "VTOY_DEFAULT_SEARCH_ROOT": "/iso" },
+    { "VTOY_MENU_TIMEOUT": "3" },
+    { "VTOY_DEFAULT_IMAGE": "/iso/vita/vita-live.iso" }
+  ],
+  "menu_alias": [
+    {
+      "image": "/iso/vita/vita-live.iso",
+      "alias": "Vita — Agent-native Live OS"
+    }
+  ]
+}
