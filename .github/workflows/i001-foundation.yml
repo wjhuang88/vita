@@ -1,6 +1,16 @@
 name: I001 Foundation
 
 on:
+  push:
+    branches:
+      - "spike/i001-boot-talos-boundaries"
+    paths:
+      - ".github/workflows/i001-foundation.yml"
+      - "prototypes/interaction-runtime/**"
+      - "docs/reference/TALOS-INTEGRATION.md"
+      - "docs/backlog/active/VITA-001-D-talos-interaction-runtime.md"
+      - "scripts/validate_project_governance.sh"
+      - ".agent-governance/manifest.yaml"
   pull_request:
     paths:
       - ".github/workflows/i001-foundation.yml"
