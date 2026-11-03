@@ -28,20 +28,17 @@ fail() {
 assert_disposable_loop() {
   local expected backing
   expected="$(readlink -f "$RAW_IMAGE")"
-
   [[ "$LOOP_DEVICE" =~ ^/dev/loop[0-9]+$ ]] || fail "refusing non-loop target: $LOOP_DEVICE"
   [[ -b "$LOOP_DEVICE" ]] || fail "loop target is not a block device: $LOOP_DEVICE"
-  [[ ! -e "/sys/class/block/${LOOP_DEVICE#/dev/}/start" ]] || fail "target is a partition, not a whole loop device: $LOOP_DEVICE"
-
+  [[ ! -e "/sys/class/block/${LOOP_DEVICE#/dev/}/start" ]] || fail "target is a partition: $LOOP_DEVICE"
   backing="$(sudo losetup --list --noheadings --output BACK-FILE "$LOOP_DEVICE" | xargs)"
   [[ -n "$backing" ]] || fail "loop target has no backing file"
   backing="$(readlink -f "$backing")"
-  [[ "$backing" == "$expected" ]] || fail "loop backing file mismatch: expected $expected, got $backing"
+  [[ "$backing" == "$expected" ]] || fail "loop backing mismatch: expected $expected, got $backing"
 }
 
 make_probe_iso() {
-  local iso_path="$1" marker="$2" tree
-  tree="$WORK_DIR/iso-${marker}"
+  local iso_path="$1" marker="$2" tree="$WORK_DIR/iso-$2"
   mkdir -p "$tree/boot/grub"
   cat > "$tree/boot/grub/grub.cfg" <<EOF
 set timeout=0
@@ -54,32 +51,14 @@ menuentry "Vita I001 probe" {
     halt
 }
 EOF
-  grub-mkrescue -o "$iso_path" "$tree" >/dev/null 2>&1
+  grub-mkrescue -o "$iso_path" "$tree"
   [[ -s "$iso_path" ]] || fail "failed to create probe ISO: $iso_path"
 }
 
-find_ovmf() {
+find_first_file() {
   local candidate
-  for candidate in \
-    /usr/share/OVMF/OVMF_CODE_4M.fd \
-    /usr/share/OVMF/OVMF_CODE.fd; do
-    if [[ -f "$candidate" ]]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
-  done
-  return 1
-}
-
-find_ovmf_vars() {
-  local candidate
-  for candidate in \
-    /usr/share/OVMF/OVMF_VARS_4M.fd \
-    /usr/share/OVMF/OVMF_VARS.fd; do
-    if [[ -f "$candidate" ]]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
+  for candidate in "$@"; do
+    [[ -f "$candidate" ]] && { printf '%s\n' "$candidate"; return 0; }
   done
   return 1
 }
@@ -87,58 +66,40 @@ find_ovmf_vars() {
 run_qemu_probe() {
   local mode="$1" expected_marker="$2" log="$WORK_DIR/qemu-${mode}-${expected_marker}.log"
   local -a firmware_args=()
-
   if [[ "$mode" == "uefi" ]]; then
-    local ovmf_code ovmf_vars vars_copy
-    ovmf_code="$(find_ovmf)" || fail "OVMF code image not found"
-    ovmf_vars="$(find_ovmf_vars)" || fail "OVMF vars image not found"
+    local code vars vars_copy
+    code="$(find_first_file /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd)" || fail "OVMF code image not found"
+    vars="$(find_first_file /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd)" || fail "OVMF vars image not found"
     vars_copy="$WORK_DIR/OVMF_VARS-${expected_marker}.fd"
-    cp "$ovmf_vars" "$vars_copy"
+    cp "$vars" "$vars_copy"
     firmware_args=(
-      -drive "if=pflash,format=raw,unit=0,readonly=on,file=$ovmf_code"
+      -drive "if=pflash,format=raw,unit=0,readonly=on,file=$code"
       -drive "if=pflash,format=raw,unit=1,file=$vars_copy"
     )
   fi
 
   set +e
   timeout 45s qemu-system-x86_64 \
-    -machine accel=tcg \
-    -m 512 \
+    -machine accel=tcg -m 512 \
     "${firmware_args[@]}" \
     -drive "file=$RAW_IMAGE,format=raw,if=ide" \
-    -display none \
-    -serial "file:$log" \
-    -monitor none \
-    -no-reboot
-  local qemu_rc=$?
+    -display none -serial "file:$log" -monitor none -no-reboot
+  local rc=$?
   set -e
-
-  # GRUB's halt can leave QEMU waiting, so timeout(124) is acceptable only when the marker exists.
-  if [[ "$qemu_rc" -ne 0 && "$qemu_rc" -ne 124 ]]; then
-    cat "$log" >&2 || true
-    fail "QEMU $mode exited unexpectedly with status $qemu_rc"
-  fi
-
-  if ! grep -Fq "$expected_marker" "$log"; then
-    cat "$log" >&2 || true
-    fail "QEMU $mode did not reach marker $expected_marker"
-  fi
+  [[ "$rc" -eq 0 || "$rc" -eq 124 ]] || { cat "$log" >&2 || true; fail "QEMU $mode exited with $rc"; }
+  grep -Fq "$expected_marker" "$log" || { cat "$log" >&2 || true; fail "QEMU $mode did not reach $expected_marker"; }
   echo "VITA_BOOT_PROBE_OK mode=$mode marker=$expected_marker"
 }
 
 set_default_image() {
   local image_path="$1"
   python3 - "$MOUNT_DIR/ventoy/ventoy.json" "$image_path" <<'PY'
-import json
-import pathlib
-import sys
-
+import json, pathlib, sys
 path = pathlib.Path(sys.argv[1])
-default_image = sys.argv[2]
 data = json.loads(path.read_text())
 for entry in data.get("control", []):
     if "VTOY_DEFAULT_IMAGE" in entry:
-        entry["VTOY_DEFAULT_IMAGE"] = default_image
+        entry["VTOY_DEFAULT_IMAGE"] = sys.argv[2]
         break
 else:
     raise SystemExit("VTOY_DEFAULT_IMAGE missing")
@@ -151,20 +112,18 @@ echo "[I001] Install host dependencies"
 sudo apt-get update -qq
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
   qemu-system-x86 ovmf grub-common grub-pc-bin grub-efi-amd64-bin \
-  xorriso parted util-linux dosfstools exfatprogs curl python3 >/dev/null
+  xorriso mtools parted util-linux dosfstools exfatprogs curl python3 >/dev/null
 
 echo "[I001] Build deterministic boot-stub ISOs"
-make_probe_iso "$WORK_DIR/vita-live.iso" "VITA_BOOT_OK"
-make_probe_iso "$WORK_DIR/user-probe.iso" "VITA_USER_ISO_BOOT_OK"
+make_probe_iso "$WORK_DIR/vita-live.iso" VITA_BOOT_OK
+make_probe_iso "$WORK_DIR/user-probe.iso" VITA_USER_ISO_BOOT_OK
 
 echo "[I001] Fetch and verify pinned Ventoy release"
 curl --fail --location --silent --show-error "$VENTOY_URL" -o "$WORK_DIR/ventoy.tar.gz"
-echo "$VENTOY_SHA256  $WORK_DIR/ventoy.tar.gz" | sha256sum --check --status \
-  || fail "Ventoy archive SHA-256 mismatch"
+echo "$VENTOY_SHA256  $WORK_DIR/ventoy.tar.gz" | sha256sum --check --status || fail "Ventoy SHA-256 mismatch"
 tar -xzf "$WORK_DIR/ventoy.tar.gz" -C "$WORK_DIR"
 VENTOY_DIR="$WORK_DIR/ventoy-${VENTOY_VERSION}"
-[[ -x "$VENTOY_DIR/Ventoy2Disk.sh" || -f "$VENTOY_DIR/Ventoy2Disk.sh" ]] \
-  || fail "Ventoy release layout is unexpected"
+[[ -f "$VENTOY_DIR/Ventoy2Disk.sh" ]] || fail "unexpected Ventoy release layout"
 
 echo "[I001] Create disposable raw disk and prove target identity"
 truncate -s 768M "$RAW_IMAGE"
@@ -172,19 +131,14 @@ LOOP_DEVICE="$(sudo losetup --find --show --partscan "$RAW_IMAGE")"
 assert_disposable_loop
 
 echo "[I001] Install Ventoy only to the verified disposable loop device"
-(
-  cd "$VENTOY_DIR"
-  printf 'y\ny\n' | sudo bash ./Ventoy2Disk.sh -i -L VITA "$LOOP_DEVICE"
-)
+(cd "$VENTOY_DIR" && printf 'y\ny\n' | sudo bash ./Ventoy2Disk.sh -i -L VITA "$LOOP_DEVICE")
 assert_disposable_loop
 sudo partprobe "$LOOP_DEVICE"
 sudo udevadm settle
-
 PART1="${LOOP_DEVICE}p1"
-[[ -b "$PART1" ]] || fail "Ventoy data partition was not created: $PART1"
+[[ -b "$PART1" ]] || fail "Ventoy data partition missing: $PART1"
 mkdir -p "$MOUNT_DIR"
 sudo mount "$PART1" "$MOUNT_DIR"
-
 sudo mkdir -p "$MOUNT_DIR/iso/vita" "$MOUNT_DIR/ventoy" "$MOUNT_DIR/talos/config"
 sudo cp "$WORK_DIR/vita-live.iso" "$MOUNT_DIR/iso/vita/vita-live.iso"
 sudo cp "$WORK_DIR/user-probe.iso" "$MOUNT_DIR/iso/user-probe.iso"
@@ -205,7 +159,7 @@ sudo partprobe "$LOOP_DEVICE"
 sudo udevadm settle
 PART1="${LOOP_DEVICE}p1"
 sudo mount "$PART1" "$MOUNT_DIR"
-set_default_image "/iso/user-probe.iso"
+set_default_image /iso/user-probe.iso
 sudo umount "$MOUNT_DIR"
 sudo losetup -d "$LOOP_DEVICE"
 LOOP_DEVICE=""
