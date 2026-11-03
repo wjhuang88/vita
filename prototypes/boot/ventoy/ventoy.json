@@ -2,7 +2,8 @@
   "control": [
     { "VTOY_DEFAULT_SEARCH_ROOT": "/iso" },
     { "VTOY_MENU_TIMEOUT": "3" },
-    { "VTOY_DEFAULT_IMAGE": "/iso/vita/vita-live.iso" }
+    { "VTOY_DEFAULT_IMAGE": "/iso/vita/vita-live.iso" },
+    { "VTOY_SECONDARY_BOOT_MENU": "0" }
   ],
   "menu_alias": [
     {
