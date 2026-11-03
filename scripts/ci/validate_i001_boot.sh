@@ -64,7 +64,10 @@ find_first_file() {
 }
 
 run_qemu_probe() {
-  local mode="$1" expected_marker="$2" log="$WORK_DIR/qemu-${mode}-${expected_marker}.log"
+  local mode expected_marker log
+  mode="$1"
+  expected_marker="$2"
+  log="$WORK_DIR/qemu-${mode}-${expected_marker}.log"
   local -a firmware_args=()
   if [[ "$mode" == "uefi" ]]; then
     local code vars vars_copy
