@@ -4,8 +4,7 @@
 
 | Item | State | Owner Doc | Gate |
 | --- | --- | --- | --- |
-| I001 | Review | `iterations/I001-foundation.md` | Re-run governance against synchronized owner docs, then close iteration |
 | VITA-001 | Now / Active | `backlog/active/VITA-001-agent-native-usb-os.md` | Advance executable child slices without bypassing their own readiness gates |
 | VITA-001-B | Next / Ready | `backlog/active/VITA-001-B-iso-boot.md` | Select representative real ISO fixture and execute its acceptance path |
 | VITA-001-D | Next / Ready | `backlog/active/VITA-001-D-talos-interaction-runtime.md` | Start real console/session integration on top of the proven runtime embedding |
-| VITA-001-C | Refinement | `backlog/active/VITA-001-C-live-os.md` | Select and record concrete Live OS base/build contract before implementation |
+| VITA-001-C | Later / Refinement | `backlog/active/VITA-001-C-live-os.md` | Select and record concrete Live OS base/build contract before implementation |
