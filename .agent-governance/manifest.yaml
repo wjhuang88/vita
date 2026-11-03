@@ -1,0 +1,55 @@
+schema_version: "1"
+managed_by: "agent-project-governance"
+profile: "high-risk"
+status: "conformant"
+initialized_at: "2026-11-03"
+last_audited_at: "2026-11-03"
+
+governance:
+  skill_name: "agent-project-governance"
+  skill_version: "2.0.0"
+  last_refresh: "2026-11-03"
+
+entrypoints:
+  agent_guide: "AGENTS.md"
+  evolution: "EVOLUTION.md"
+  evolution_feedback: "docs/sop/EVOLUTION-FEEDBACK.md"
+  document_map: "docs/README.md"
+  board: "docs/BOARD.md"
+  backlog: "docs/backlog/PRODUCT-BACKLOG.md"
+  iterations: "docs/iterations/"
+  decisions: "docs/decisions/"
+  roadmap: "docs/roadmap/IMPLEMENTATION-ROADMAP.md"
+  proposals: "docs/proposals/"
+  reference: "docs/reference/"
+  sop: "docs/sop/"
+
+capabilities:
+  task_router: "conformant"
+  evolution_feedback: "conformant"
+  testing_policy: "conformant"
+  git_workflow: "conformant"
+  requirement_intake: "conformant"
+  iteration_workflow: "conformant"
+  change_control: "conformant"
+  decision_records: "conformant"
+  release_workflow: "conformant"
+  risk_specific_gates: "conformant"
+
+risk_gates:
+  - signal: "USB image creation and storage tools can overwrite physical disks"
+    gate: "Target-device identity, dry-run/plan, explicit confirmation, VM validation before physical writes"
+    owner: "docs/sop/BOOT-MEDIA-VALIDATION.md"
+  - signal: "Talos will initiate system-level operations from natural-language intent"
+    gate: "Typed capability broker, policy classification, destructive-operation confirmation and audit"
+    owner: "docs/sop/PRIVILEGED-OPERATIONS.md"
+  - signal: "Model credentials may be loaded from removable media"
+    gate: "No tracked plaintext secrets; secret references and redaction requirements"
+    owner: "docs/sop/SECURITY.md"
+  - signal: "Boot compatibility depends on firmware, bootloader and image layout"
+    gate: "QEMU matrix and recorded firmware-mode evidence before release"
+    owner: "docs/sop/BOOT-MEDIA-VALIDATION.md"
+
+migration:
+  legacy_assets: []
+  next_actions: []
