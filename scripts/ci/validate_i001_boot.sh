@@ -96,7 +96,7 @@ run_qemu_probe() {
 
 set_default_image() {
   local image_path="$1"
-  python3 - "$MOUNT_DIR/ventoy/ventoy.json" "$image_path" <<'PY'
+  sudo python3 - "$MOUNT_DIR/ventoy/ventoy.json" "$image_path" <<'PY'
 import json, pathlib, sys
 path = pathlib.Path(sys.argv[1])
 data = json.loads(path.read_text())
