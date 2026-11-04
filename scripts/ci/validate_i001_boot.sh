@@ -206,13 +206,17 @@ if [[ -n "$(env | grep '^VITA_I002_REAL_ISO=1$' || true)" ]]; then
   [[ -b "$PART1" ]] || fail "Ventoy data partition absent"
   sudo mount "$PART1" "$MOUNT_DIR"
   sudo cp "$WORK_DIR/$ALPINE_NAME" "$MOUNT_DIR/iso/$ALPINE_NAME"
-  set_default_image "/iso/$ALPINE_NAME"
+  GRUB2_NAME="$(basename "$ALPINE_NAME" .iso)_VTGRUB2.iso"
+  sudo cp "$WORK_DIR/$ALPINE_NAME" "$MOUNT_DIR/iso/$GRUB2_NAME"
+  [[ "$(sudo sha256sum "$MOUNT_DIR/iso/$GRUB2_NAME" | awk '{ print $1 }')" == "$ALPINE_SHA256" ]] || fail "GRUB2-mode filename copy must preserve exact upstream ISO bytes"
+  echo "VITA_I002_GRUB2_FALLBACK filename=$GRUB2_NAME sha256=$ALPINE_SHA256"
+  set_default_image "/iso/$GRUB2_NAME"
   sync
   sudo umount "$MOUNT_DIR"
   sudo losetup -d "$LOOP_DEVICE"
   LOOP_DEVICE=""
 
-  echo "[I002] Verify Ventoy/UEFI discovers and boots the original Alpine ISO into Linux"
+  echo "[I002] Verify Ventoy/UEFI GRUB2 fallback boots byte-identical Alpine Linux"
   python3 "$ROOT_DIR/scripts/ci/observe_alpine_guest.py" \
     --disk "$RAW_IMAGE" --firmware uefi \
     --label ventoy-uefi --log-dir "$LOG_DIR" --timeout 210
