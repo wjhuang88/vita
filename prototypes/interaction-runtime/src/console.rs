@@ -203,8 +203,7 @@ impl ConsoleInput {
                         }
                         Command::Quit => {
                             self.exit_after_turn = true;
-                            self.pending.clear();
-                            writeln!(out, "\n[exit after current turn]")?;
+                            writeln!(out, "\n[exit after queued turns]")?;
                         }
                         Command::Help => help(out)?,
                         Command::TooLong => writeln!(out, "\n[input rejected]")?,
@@ -248,7 +247,7 @@ pub async fn run() -> Result<(), Box<dyn Error>> {
     let mut input = ConsoleInput::new();
     let mut result: Result<(), Box<dyn Error>> = Ok(());
     loop {
-        if input.exit_after_turn { break; }
+        if input.exit_after_turn && input.pending.is_empty() { break; }
         let prompt = match input.prompt(&mut out).await? {
             Some(value) => value,
             None => break,
