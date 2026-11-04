@@ -27,3 +27,7 @@ cargo run
 The embedding prototype compiled and ran successfully in [GitHub Actions run 41660883827](https://github.com/wjhuang88/vita/actions/runs/41660883827) using Rust 1.99.0. The command above is equivalent to the tested CI entrypoint.
 
 This prototype is not the final Vita interaction UI, capability broker, provider configuration, or privileged execution path.
+
+## I003 test evidence
+
+The read-only provider is now extracted into `crates/vita-system-facts`, with 4 tests covering parsing and missing/invalid/oversized fixtures. [CI run 41772155509](https://github.com/wjhuang88/vita/actions/runs/41772155509) compiled and executed this Rust prototype and emitted `VITA_I001_TALOS_RUNTIME_OK` under the Read permission rule.

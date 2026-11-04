@@ -1,6 +1,7 @@
 # I003 — Rust-native, read-only system facts through Talos
 
-Status: Active
+Status: Complete
+Completed: 2026-11-04
 Published baseline: 2026-11-04
 
 ## Objective
@@ -34,4 +35,14 @@ This slice does **not** make a Vita Live OS, console/PTY, crash recovery or priv
 
 ## Evidence
 
-Awaiting GitHub Actions execution. Do not mark I003 Complete until actual tests pass and owner status is synchronized.
+[GitHub Actions run 41772155509](https://github.com/wjhuang88/vita/actions/runs/41772155509), head `ffc3f16748e7912cbc77c9a04b0e223a610f63fc`, concluded **success** on all three jobs:
+
+- `governance` — success.
+- `talos-runtime-prototype` — success. All 4 Rust system-facts unit tests passed and the integrated Talos Runtime emitted `VITA_I001_TALOS_RUNTIME_OK`.
+- `boot-chain-prototype` — success; the established BIOS/UEFI and additional probe ISO pathways did not regress.
+
+## Closure and residual
+
+I003 is **Complete** for its bounded deliverable: an independent no-dependency Rust system-facts crate wired through the Talos Read capability and protected by deterministic tests. **VITA-001-D remains Active**, because the full default Live OS session, interactive console/PTY, failure recovery and system policy broker have not been implemented.
+
+The parallel real-ISO I002 test is Partial in unmerged Draft PR #4: direct Alpine Linux BIOS/UEFI boot passed, but Ventoy handoff under BIOS/UEFI and GRUB2 fallback did not reach Linux. See [Issue #5](https://github.com/wjhuang88/vita/issues/5). This does not affect the I003 read-only provider.

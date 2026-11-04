@@ -97,7 +97,7 @@ Expected success marker:
 VITA_I001_TALOS_RUNTIME_OK
 ```
 
-The prototype pins a tested Talos Git revision, uses a deterministic fake model (no API key or network model endpoint), registers a read-only `system_summary` tool and accesses Linux facts through native file interfaces. It does **not** provide the final interactive shell.
+The prototype pins a tested Talos Git revision, uses a deterministic fake model (no API key or network model endpoint), registers a read-only `system_summary` tool and accesses typed, bounded Linux facts through [vita-system-facts](crates/vita-system-facts/) without a shell. The crate's four tests and the Talos integration have passed CI. It does **not** provide the final interactive shell.
 
 ### 3. Validate the temporary-image boot chain
 

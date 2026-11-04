@@ -41,7 +41,7 @@ Confirmed:
 
 Vita proof source: `../../../prototypes/interaction-runtime/`.
 
-The prototype registers a Vita-owned read-only `system_summary` capability and runs a deterministic network-free turn through Talos Runtime. CI execution evidence is required before the I001 proof is considered passed.
+The I001 prototype registered a Vita-owned read-only `system_summary` capability and ran a deterministic network-free turn through Talos Runtime. I003 now extracts its Linux facts into `crates/vita-system-facts`; all 4 crate tests and the actual Talos tool execution passed in [CI run 41772155509](https://github.com/wjhuang88/vita/actions/runs/41772155509). Full console and Live OS integration remain unimplemented.
 
 Decision links: `../../decisions/ADR-0001-talos-primary-interaction-runtime.md`, `../../decisions/ADR-0002-governed-capability-broker.md`.
 Decision constraint: Talos is the primary interaction runtime; privileged actions pass through the broker.

@@ -31,7 +31,7 @@ If a provider cannot safely use a Rust-native API, its narrow adapter declares e
 
 ## First extracted provider (I003)
 
-`crates/vita-system-facts` is an implemented no-dependency Rust library for bounded, read-only Linux system summary fields. It is invoked through `prototypes/interaction-runtime` with Talos' explicit Read permission rule and tested with deterministic fixture paths. This is **not** a complete capability broker, service manager or disk-inventory API.
+`crates/vita-system-facts` is an implemented no-dependency Rust library for bounded, read-only Linux system summary fields. It is invoked through `prototypes/interaction-runtime` with Talos' explicit Read permission rule and tested with deterministic fixture paths. Its 4 unit tests and integrated Talos tool execution passed in [CI run 41772155509](https://github.com/wjhuang88/vita/actions/runs/41772155509). This is **not** a complete capability broker, service manager or disk-inventory API.
 
 ## Validation
 
