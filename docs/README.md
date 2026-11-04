@@ -10,6 +10,7 @@
 | Roadmap | `roadmap/IMPLEMENTATION-ROADMAP.md` | Stage ordering and sequencing rationale |
 | Proposals | `proposals/` | Immature directions, not executable work |
 | Stable project facts | `reference/` | Architecture, contracts, layout and threat model |
+| Human acceptance | `validation/` | Explicit manual tests, deferred requirements and evidence handoffs |
 | Procedures | `sop/` | Repeatable process and validation gates |
 
 Start with `../AGENTS.md` for routing.

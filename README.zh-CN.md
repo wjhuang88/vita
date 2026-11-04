@@ -83,6 +83,14 @@ cargo +1.99.0 run --manifest-path prototypes/interaction-runtime/Cargo.toml
 
 成功时输出 `VITA_I001_TALOS_RUNTIME_OK`。该原型使用确定性模拟模型，不需要模型 API Key，也不需要访问在线模型。
 
+I004 新增可在 Linux 宿主机上运行的 **Rust 原生离线控制台测试模式**：
+
+```sh
+cargo +1.99.0 run --manifest-path prototypes/interaction-runtime/Cargo.toml -- --console-fixture
+```
+
+该模式通过实际 Talos Runtime 调用只读系统信息能力，但使用确定性模拟模型，不是正式 Live OS。真人操作的 Ctrl+C、TTY/PTY、恢复路径等检查集中记录在 [I004 人工验收清单](docs/validation/I004-HUMAN-ACCEPTANCE.md)，供独立会话统一验收。
+
 在**可丢弃的 Linux VM / CI Runner** 中验证 Ventoy 启动链：
 
 ```sh

@@ -31,3 +31,15 @@ This prototype is not the final Vita interaction UI, capability broker, provider
 ## I003 test evidence
 
 The read-only provider is now extracted into `crates/vita-system-facts`, with 4 tests covering parsing and missing/invalid/oversized fixtures. [CI run 41772155509](https://github.com/wjhuang88/vita/actions/runs/41772155509) compiled and executed this Rust prototype and emitted `VITA_I001_TALOS_RUNTIME_OK` under the Read permission rule.
+
+## I004 offline Rust console fixture
+
+Run the host-side **deterministic Talos Runtime console**, not a production model:
+
+```sh
+cargo +1.99.0 run --manifest-path prototypes/interaction-runtime/Cargo.toml -- --console-fixture
+```
+
+Enter `inspect` to exercise the registered read-only `system_summary` Tool through Talos, stream its response, and continue to another prompt. `:help`, `:cancel`, `:quit` and Ctrl+C are available. `demo:error` deliberately fails one fixture turn to test recovery; `demo:slow` lets a human test interrupting an active turn. Input typed during a turn is queued; EOF finishes the active turn first.
+
+The session does not connect to an LLM, write disks, expose a root shell, boot a Vita ISO or provide durable recovery. The [manual acceptance checklist](../../docs/validation/I004-HUMAN-ACCEPTANCE.md) records items requiring a real TTY/PTY or human review.
