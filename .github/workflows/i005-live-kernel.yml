@@ -31,6 +31,7 @@ jobs:
         run: |
           bash -n scripts/ci/validate_i005_live_init.sh
           rustup toolchain install 1.99.0 --profile minimal
+          rustup component add --toolchain 1.99.0 rustfmt
           cargo +1.99.0 fmt --manifest-path prototypes/live-init/Cargo.toml --all -- --check
       - name: Boot real Linux kernel with Vita Rust PID 1 in QEMU
         run: bash scripts/ci/validate_i005_live_init.sh
