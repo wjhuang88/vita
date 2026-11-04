@@ -51,3 +51,12 @@ Run [41768331775](https://github.com/wjhuang88/vita/actions/runs/41768331775) at
 This is a real boot-menu handoff observation, not a checksum/VM failure. Correction: the guest observer now sends a single carriage return **only when it sees the exact ISOLINUX `boot:` prompt**, modeling an operator accepting the ISO's default boot entry, and records `VITA_I002_ISOLINUX_BOOT_PROMPT_ACCEPTED`. The independently observed image digest is now also hard-pinned after the upstream manifest check.
 
 Retest remains required; these findings do **not** establish successful Ventoy-backed Linux boot until a later run reaches the executed guest command marker.
+
+## Second CI observation and firmware-specific follow-up (2026-11-04)
+
+Run [41769007122](https://github.com/wjhuang88/vita/actions/runs/41769007122):
+- Alpine direct BIOS control passed again, including login and executed command.
+- Ventoy's BIOS path visibly reached the ISOLINUX `boot:` prompt. The observer sent a single Enter only after seeing this prompt (marker: `VITA_I002_ISOLINUX_BOOT_PROMPT_ACCEPTED`).
+- Even after Enter, the serial stream remained at ISOLINUX and no Linux guest command proof appeared. This is an **unresolved BIOS compatibility outcome**; extending the timeout or treating the prompt as success would be misleading.
+
+Vita's primary firmware target is x86_64 UEFI. The next targeted experiment adds a positive-control **direct OVMF boot of the original Alpine ISO**, then a Ventoy-backed OVMF boot of that same ISO. The test emits the same in-guest `uname -s` and `VITA_I002_GUEST_OK` proof. BIOS compatibility remains explicitly open for future diagnosis and is not silently counted as passing.
