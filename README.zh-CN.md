@@ -58,7 +58,8 @@ Vita 是一个开源的、**Rust-first 的 Agent 原生便携操作环境**。�
 | BIOS 启动第二个用户测试 ISO | **QEMU 已通过**：`VITA_USER_ISO_BOOT_OK` |
 | Rust 直接嵌入 Talos Runtime，使用独立的 [vita-system-facts](crates/vita-system-facts/) Rust 模块执行只读 `system_summary` | **CI 已通过**：`VITA_I001_TALOS_RUNTIME_OK` |
 | 真实第三方 Linux ISO 启动 | **待实现** |
-| Vita Linux Live OS（内核、rootfs、会话） | **待实现** |
+| Linux 内核到 Vita Rust PID 1 的 QEMU 直接启动 | **I005 已通过**：真实 Linux 串口标记 |
+| 完整 Vita Linux Live OS（rootfs、Talos 默认会话） | **待实现** |
 | 完整权限代理、配置持久化、恢复机制 | **待实现** |
 | Secure Boot、真实 U 盘兼容性、可发布镜像 | **尚未验证** |
 
@@ -128,3 +129,7 @@ bash scripts/ci/validate_i001_boot.sh
 ---
 
 **Vita 希望让机器自然地理解意图，同时始终把系统级控制权交还给使用者。**
+
+## I005：Linux 内核与 Rust 用户空间工程验证
+
+I005 已经通过 [QEMU 直接启动 Linux 内核并进入 Vita Rust 进程](prototypes/live-init/) 的最小验证路径（[CI 41791034664](https://github.com/wjhuang88/vita/actions/runs/41791034664)），使用校验过的 Alpine 内核和静态 Rust 程序。它**不是**完整 Live OS、Talos 默认交互环境或实体 U 盘安装器，也不代表 Ventoy 真实 ISO 兼容性问题已经解决。参见 [ADR-0006](docs/decisions/ADR-0006-alpine-live-base.md) 及 [I005 人工验收/评审清单](docs/validation/I005-HUMAN-ACCEPTANCE.md)。

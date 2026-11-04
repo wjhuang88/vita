@@ -1,0 +1,44 @@
+name: I005 Rust Linux Boot Proof
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/i005-live-kernel.yml"
+      - "prototypes/live-init/**"
+      - "scripts/ci/validate_i005_live_init.sh"
+      - "docs/iterations/I005-linux-rust-boot.md"
+      - "docs/backlog/active/VITA-001-C-live-os.md"
+      - "docs/decisions/ADR-0006-alpine-live-base.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate project governance
+        run: sh scripts/validate_project_governance.sh .
+
+  rust-linux-boot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate script syntax and Rust style
+        run: |
+          bash -n scripts/ci/validate_i005_live_init.sh
+          rustup toolchain install 1.99.0 --profile minimal
+          rustup component add --toolchain 1.99.0 rustfmt
+          cargo +1.99.0 fmt --manifest-path prototypes/live-init/Cargo.toml --all -- --check
+      - name: Boot real Linux kernel with Vita Rust PID 1 in QEMU
+        run: bash scripts/ci/validate_i005_live_init.sh
+      - name: Retain guest serial evidence on all outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i005-linux-guest-serial
+          path: i005-live-logs/
+          if-no-files-found: warn
