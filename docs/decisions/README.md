@@ -8,3 +8,4 @@ Current:
 - ADR-0003 — Original boot-substrate deferral (superseded by ADR-0004).
 - ADR-0004 — Selected Phase 1 hybrid Ventoy substrate + Vita-owned Live OS.
 - ADR-0005 — Rust-first Vita-owned system capabilities; explicit Linux/boot/external dependency exceptions.
+- ADR-0006 — Alpine Linux/musl first Live base and direct Linux kernel/Rust init prototype (not a release claim).

@@ -128,3 +128,7 @@ bash scripts/ci/validate_i001_boot.sh
 ---
 
 **Vita 希望让机器自然地理解意图，同时始终把系统级控制权交还给使用者。**
+
+## I005：Linux 内核与 Rust 用户空间工程验证
+
+I005 正在实现 [QEMU 直接启动 Linux 内核并进入 Vita Rust 进程](prototypes/live-init/) 的最小验证路径，使用校验过的 Alpine 内核和静态 Rust 程序。它**不是**完整 Live OS、Talos 默认交互环境或实体 U 盘安装器，也不代表 Ventoy 真实 ISO 兼容性问题已经解决。参见 [ADR-0006](docs/decisions/ADR-0006-alpine-live-base.md) 及 [I005 人工验收/评审清单](docs/validation/I005-HUMAN-ACCEPTANCE.md)。

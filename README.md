@@ -64,7 +64,7 @@ Read [ADR-0004](docs/decisions/ADR-0004-hybrid-ventoy-boot-substrate.md) (boot),
 | Second user probe ISO, legacy BIOS | **Proven in QEMU** | `VITA_USER_ISO_BOOT_OK` guest marker |
 | Embedded Talos Runtime + read-only `system_summary` | **Proven in CI** | Rust prototype executes a deterministic, offline agent turn without a shell |
 | Representative third-party Linux ISO boot | **Next** | VITA-001-B |
-| Real Vita Linux kernel/initramfs/rootfs and session | **Not yet built** | VITA-001-C + D |
+| Real Vita Linux kernel/initramfs/rootfs and session | **Not yet built** | I005 begins a Linux kernel/Rust PID 1 VM proof, not a usable Live OS; VITA-001-C + D |
 | Governed privileged operations, recovery, persistence | **Planned** | VITA-001-E/F/G |
 | Secure Boot, physical-device matrix, releasable image | **Not yet validated** | VITA-001-H and later release hardening |
 
@@ -176,3 +176,7 @@ Vita's Phase 1 boot plan uses **Ventoy**, whose own work is licensed **GPLv3+**,
 ---
 
 **Vita is a project to make operating a machine feel native to intelligence—without surrendering system-level control.**
+
+## Next Live Linux milestone (I005, experimental)
+
+The [I005 direct Linux boot test](prototypes/live-init/) targets a verified Alpine kernel and a **static Rust init probe**, then requires a QEMU serial marker from real guest Linux PID 1. This is explicitly an engineering *kernel-to-Rust user-space* proof, **not** the final Vita Live ISO, a Talos session, or a physical-USB writer. See [ADR-0006](docs/decisions/ADR-0006-alpine-live-base.md) and the [human review checklist](docs/validation/I005-HUMAN-ACCEPTANCE.md). Once CI passes, the separate Live rootfs and default Talos session will remain to be built.
