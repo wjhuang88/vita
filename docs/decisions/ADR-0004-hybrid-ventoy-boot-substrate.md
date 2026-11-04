@@ -1,6 +1,6 @@
 # ADR-0004 — Hybrid boot architecture: Ventoy substrate + Vita-owned Live OS
 
-Status: Accepted for Phase 1; implementation remains gated by QEMU proof in VITA-001-A.
+Status: Accepted for Phase 1. VITA-001-A's deterministic BIOS/UEFI QEMU boot-stub proof passed on 2026-11-03; full Live OS and physical-media gates remain open.
 
 ## Context
 
@@ -64,6 +64,10 @@ Before VITA-001-A can be Complete:
 5. record exact Ventoy version/hash and commands.
 
 Physical-media testing comes only after VM gates pass.
+
+## I001 evidence
+
+The QEMU probe gate above was satisfied by CI run [41660883827](https://github.com/wjhuang88/vita/actions/runs/41660883827) and the archived [VITA-001-A spike](../backlog/archive/VITA-001-A-boot-strategy-spike.md). The proof covers disposable loop-backed Ventoy installation, BIOS/OVMF handoff to the Vita probe ISO, and an additional user probe ISO. It does not establish a full Live OS, Secure Boot, real-distro compatibility or physical USB support.
 
 ## Reversal Trigger
 
