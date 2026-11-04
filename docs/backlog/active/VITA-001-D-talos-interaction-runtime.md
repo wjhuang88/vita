@@ -5,7 +5,7 @@ I want the system to enter a Talos Core-driven interaction environment by defaul
 so that system intent, inspection and operations are mediated by an Agent-native interface rather than a conventional shell-first workflow.
 
 Scope:
-- Build a dedicated OS interaction runtime on Talos Core APIs/components.
+- Build a dedicated Rust OS interaction runtime on Talos Core APIs/components, using the supported SDK instead of starting Talos CLI as a child process.
 - Own session lifecycle, prompt/input loop, context, tool/capability invocation and result rendering.
 - Obtain system context from structured providers.
 - Provide explicit escape/recovery path to a conventional shell.
@@ -24,6 +24,6 @@ Acceptance:
   When the recovery path is selected
   Then a conventional local shell remains available for repair.
 
-Decision links: `../../decisions/ADR-0001-talos-primary-interaction-runtime.md`, `../../decisions/ADR-0002-governed-capability-broker.md`.
+Decision links: `../../decisions/ADR-0001-talos-primary-interaction-runtime.md`, `../../decisions/ADR-0002-governed-capability-broker.md`, `../../decisions/ADR-0005-rust-first-system-capabilities.md`.
 Decision constraint: Talos is the primary interaction runtime; privileged actions pass through the broker.
 Minimum validation: PTY/console integration test + Live VM smoke test.

@@ -6,3 +6,4 @@ Current:
 - ADR-0001 — Talos Core as primary interaction runtime.
 - ADR-0002 — Governed capability broker for system operations.
 - ADR-0003 — Boot substrate intentionally deferred to evidence-gathering Spike.
+- ADR-0005 — Rust-first Vita-owned system capabilities; explicit Linux/boot/external dependency exceptions.

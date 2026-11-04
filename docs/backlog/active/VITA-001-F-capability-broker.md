@@ -11,6 +11,7 @@ Scope:
 - Explicit confirmation for destructive operations.
 - Audit event with intent, resolved target, capability, result and redacted error/output.
 - First provider set: filesystem, process/service, storage inspection, network inspection, diagnostics; one controlled mutating capability.
+- Prefer typed Rust/Linux-native provider implementations; admit narrowly scoped IPC/subprocess adapters only when reviewed and justified.
 
 Out of scope:
 - Unlimited arbitrary root shell execution.
@@ -27,5 +28,11 @@ Acceptance:
 - Given a capability is not registered or policy denies it
   When Talos attempts invocation
   Then the action is rejected and audited.
+- Given a baseline read-only inspection capability
+  When Talos invokes it through the broker
+  Then it runs with Rust/Linux-native APIs without shell execution and returns structured auditable evidence.
+- Given a specific operation cannot safely use a native Rust API
+  When a reviewed fallback adapter is proposed
+  Then binary/IPC identity, privileges, typed input, failure and timeout contracts, and shipped dependencies are recorded before admission.
 
-Decision link: `../../decisions/ADR-0002-governed-capability-broker.md`.
+Decision links: `../../decisions/ADR-0002-governed-capability-broker.md`, `../../decisions/ADR-0005-rust-first-system-capabilities.md`.
