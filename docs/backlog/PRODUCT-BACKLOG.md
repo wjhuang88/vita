@@ -11,7 +11,7 @@
 | ID | Priority | Type | Title | Decision Context | Required Reads | State |
 | --- | --- | --- | --- | --- | --- | --- |
 | VITA-001 | P0 | Epic | Agent-native portable USB OS | Product foundation; I001 architecture gates proven | Architecture + ADR-0001 + ADR-0004 | Active |
-| VITA-001-B | P0 | Story | Discover and boot ISO images | A complete; prove representative real ISO | Boot research + A archive | Ready |
+| VITA-001-B | P0 | Story | Discover and boot ISO images | I002 Partial; Ventoy Alpine BIOS/UEFI guest handoff unresolved in Issue #5 | I002 + Issue #5 | Blocked |
 | VITA-001-C | P0 | Story | Boot a directly usable Live OS | A complete; Live OS base/build contract still needs refinement | ADR-0004 + USB layout | Refinement |
 | VITA-001-D | P0 | Story | Talos Core becomes the primary interactive session | `talos-runtime` embedding boundary proven | Talos integration + ADR-0001 | Ready |
 | VITA-001-E | P0 | Story | Load model and Agent configuration from the USB | Security boundary | Config contract + threat model | Refinement |
