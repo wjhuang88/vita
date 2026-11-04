@@ -1,5 +1,7 @@
 # ADR-0003 — Do not select the boot substrate before the boot-strategy Spike
 
+Status: Superseded by `ADR-0004-hybrid-ventoy-boot-substrate.md`
+
 ## Context
 The product resembles Ventoy in one dimension, but multi-ISO compatibility, licensing, upgrade behavior, UEFI/BIOS support and ownership of the Live OS path may favor different architectures.
 
@@ -17,5 +19,8 @@ Prematurely choosing Ventoy or GRUB would make later storage/layout and release 
 ## Decision
 Defer final boot-substrate selection to VITA-001-A. No implementation story may claim the boot architecture is settled until that Spike records evidence and supersedes/amends this ADR.
 
+## Supersession
+VITA-001-A gathered enough upstream evidence on 2026-11-03 to select the Phase 1 architecture. `ADR-0004-hybrid-ventoy-boot-substrate.md` supersedes this decision. QEMU proof remains an implementation gate for closing the Spike; the architecture selection is reversible if that proof invalidates a critical assumption.
+
 ## Reversal Trigger
-The Spike completes with enough evidence to select a substrate; replace this ADR with the concrete decision.
+Superseded: see ADR-0004.

@@ -4,6 +4,7 @@
 
 | Item | State | Owner Doc | Gate |
 | --- | --- | --- | --- |
-| VITA-001 | Now / Refinement | `backlog/active/VITA-001-agent-native-usb-os.md` | Child stories are ready and blocking spikes resolved |
-| VITA-001-A | Next / Spike | `backlog/active/VITA-001-A-boot-strategy-spike.md` | Evidence selects boot strategy and ADR records it |
-| I001 | Planned | `iterations/I001-foundation.md` | Start only after boot strategy and Talos Core integration assumptions are explicit |
+| VITA-001 | Now / Active | `backlog/active/VITA-001-agent-native-usb-os.md` | Advance executable child slices without bypassing their own readiness gates |
+| VITA-001-B | Next / Ready | `backlog/active/VITA-001-B-iso-boot.md` | Select representative real ISO fixture and execute its acceptance path |
+| VITA-001-D | Next / Ready | `backlog/active/VITA-001-D-talos-interaction-runtime.md` | Start real console/session integration on top of the proven runtime embedding |
+| VITA-001-C | Later / Refinement | `backlog/active/VITA-001-C-live-os.md` | Select and record concrete Live OS base/build contract before implementation |
