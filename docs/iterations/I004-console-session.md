@@ -1,6 +1,7 @@
 # I004 — Rust native console proof on Talos Runtime
 
-Status: Active
+Status: Complete
+Completed: 2026-11-04
 Published baseline: 2026-11-04
 Selected work: VITA-001-D (Active); I003 reusable Rust facts already Complete
 Risk: host-only offline tool/console fixture; no bootloader, privileges or media writes.
@@ -38,4 +39,20 @@ I002 real Alpine ISO compatibility is still Blocked under [Issue #5](https://git
 
 ## Execution evidence
 
-Pending PR #7 final CI results. Retain failed-run evidence and do not mark I004 Complete until the exact final head passes all required automated gates.
+### GitHub Actions proof
+
+[Run 41789071247](https://github.com/wjhuang88/vita/actions/runs/41789071247), source head `6a65ba884104475a2a08c2db24441953add9b10a`, completed successfully:
+
+- `governance`: **success**.
+- `boot-chain-prototype`: **success**, existing disposable-image Ventoy BIOS, UEFI and additional boot-stub ISO regression unchanged.
+- `talos-runtime-prototype`: **success**, I003 `vita-system-facts` 4/4 tests, new console parser/rendering 2/2 tests, old `VITA_I001_TALOS_RUNTIME_OK` SDK smoke, and scripted multi-turn run.
+- Scripted multi-turn: two `[turn:ok]` turns with registered `[tool] system_summary`, an intervening `[turn:error]` for `demo:error` and successful `VITA_CONSOLE_EXIT_OK`.
+- Scripted active-turn cancellation: `demo:slow` → `[interrupt requested]` → `[turn:cancelled]` → successful subsequent `system_summary` and `[turn:ok]` → `VITA_CONSOLE_EXIT_OK`.
+
+### Closure
+
+**I004 host-console slice Complete**; `VITA-001-D` remains Active because a real Live OS default session, production model/config, independent recovery and actual TTY/PTY usability evidence are not yet provided.
+
+[Human acceptance checklist](../validation/I004-HUMAN-ACCEPTANCE.md) is **PENDING** and may be completed later in another conversation. No physical USB or high-risk operation was performed.
+
+The earlier CI failure at [run 41788596295](https://github.com/wjhuang88/vita/actions/runs/41788596295) came from dropping queued prompts when a piped `:quit` arrived during the first turn. The test exposed the bug; the fix drains queued prompts before graceful exit and the later run passed both multi-turn and cancellation tests.

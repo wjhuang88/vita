@@ -1,6 +1,6 @@
 # VITA-001-D — Talos Core becomes the primary interactive OS session
 
-Status: Active (I004 — offline native console)
+Status: Active (I004 host console Complete; full Live session remains open)
 
 As an operator,
 I want the system to enter a Talos Core-driven interaction environment by default,
@@ -61,3 +61,7 @@ Minimum validation: host runtime compile/run proof + PTY/console integration tes
 - Deliberate `demo:error` and `demo:slow` fixture cases exercise error recovery and cancellation; the only registered system tool remains `system_summary` with explicit Read classification.
 - Unit and scripted CI tests are required; do not claim a production model, a Live OS default session, or recovery before VITA-001-C/D/G gates.
 - Real TTY/PTY, review and other deferred human checks: [I004 manual acceptance](../../validation/I004-HUMAN-ACCEPTANCE.md). This Story stays Active.
+
+## I004 verified result
+
+[CI run 41789071247](https://github.com/wjhuang88/vita/actions/runs/41789071247): all three jobs passed. Console parser/rendering tests 2/2, native facts 4/4, two successful structured Tool turns around a model-error fixture, and an actual SDK `:cancel` interruption followed by a successful new turn. Host-only implementation Complete. **Real TTY/PTY validation is still Pending**, tracked in [I004 manual acceptance](../../validation/I004-HUMAN-ACCEPTANCE.md). A native default Live OS session, real model provider and recovery Shell still have no completion evidence.

@@ -5,7 +5,7 @@
 
 ## Automated evidence (no human action)
 
-I004 PR #7 uses GitHub Actions to check parser/event-renderer unit tests, two successful Talos SDK read-only Tool turns separated by a provider error, clean exit, the original I001 SDK smoke, governance checks, and QEMU BIOS/UEFI boot-probe regression. Record the final successful run and head SHA after automation passes.
+**Automation PASSED** in [CI run 41789071247](https://github.com/wjhuang88/vita/actions/runs/41789071247), source head `6a65ba884104475a2a08c2db24441953add9b10a`: parser/render tests (2/2), Linux facts tests (4/4), two successful Talos read-only Tool turns around an error fixture, runtime baseline, governance, and BIOS/UEFI QEMU boot-probe regression. The explicit scripted `:cancel` fixture passed: `[interrupt requested]`, `[turn:cancelled]`, next `[turn:ok]`, clean exit. **Actual Ctrl+C / TTY / PTY validation remains unchecked and requires a person.**
 
 ## HUMAN-001 — interactive console and cancellation
 
