@@ -184,6 +184,7 @@ if [[ -n "$(env | grep '^VITA_I002_REAL_ISO=1$' || true)" ]]; then
   curl --fail --location --retry 3 --silent --show-error "$ALPINE_BASE/$ALPINE_NAME.sha256" -o "$WORK_DIR/$ALPINE_NAME.sha256"
   (cd "$WORK_DIR" && sha256sum --check --strict "$ALPINE_NAME.sha256") || fail "Alpine checksum mismatch"
   ALPINE_SHA256="$(sha256sum "$WORK_DIR/$ALPINE_NAME" | awk '{ print $1 }')"
+  [[ "$ALPINE_SHA256" == "cdc1bc0efc64d8d611bf3733f54868172a545888dfd726f518bf279bcb0ff1af" ]] || fail "Alpine image differs from the pinned validated SHA-256"
   echo "VITA_I002_FIXTURE name=$ALPINE_NAME sha256=$ALPINE_SHA256"
   printf '%s  %s\n' "$ALPINE_SHA256" "$ALPINE_NAME" > "$LOG_DIR/alpine-fixture.sha256"
 
