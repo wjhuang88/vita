@@ -33,6 +33,7 @@ def observe(args):
         qemu_log = logs / f"{args.label}.qemu.log"
         started = time.monotonic()
         transcript = bytearray()
+        boot_prompt_accepted = False
         login_sent = command_sent = False
         serial = None
         with serial_log.open("wb") as serial_file, qemu_log.open("wb") as qemu_file:
@@ -64,6 +65,10 @@ def observe(args):
                         pass
                     output = transcript.decode("utf-8", errors="replace").replace("\r", "\n")
                     output = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", output)
+                    if not boot_prompt_accepted and re.search(r"(?m)^boot:\s*$", output):
+                        serial.sendall(b"\r")
+                        boot_prompt_accepted = True
+                        print("VITA_I002_ISOLINUX_BOOT_PROMPT_ACCEPTED", flush=True)
                     if not login_sent and re.search(r"login:\s*$", output):
                         serial.sendall(b"root\r")
                         login_sent = True
