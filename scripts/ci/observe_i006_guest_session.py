@@ -74,7 +74,13 @@ def observe(kernel: str, initrd: str, log_dir: str, timeout: int) -> None:
                         raise RuntimeError("guest serial output exceeded 2MB limit")
                     output = transcript.decode("utf-8", errors="replace").replace("\r", "")
                     if "VITA_I006_GUEST_SESSION_ERROR:" in output:
-                        raise RuntimeError("Linux guest init reported session startup failure")
+                        # Wait for the end of the failing guest line before
+                        # terminating QEMU, otherwise a split recv() truncates
+                        # the only actionable error.
+                        tail = output.split("VITA_I006_GUEST_SESSION_ERROR:", 1)[1]
+                        if "\n" in tail:
+                            details = tail.split("\n", 1)[0].strip()
+                            raise RuntimeError(f"Linux guest init failed: {details}")
                     if step == 0 and "VITA_I006_GUEST_PROC_READY" in output and "vita> " in output:
                         client.sendall(b"inspect\n")
                         step = 1

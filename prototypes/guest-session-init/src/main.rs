@@ -43,11 +43,13 @@ fn boot() -> io::Result<()> {
 
     // A fixed, boot-only guest mount command. This tool is not available to
     // the agent and cannot affect host mount namespaces or any disk target.
+    let mount_stdout = OpenOptions::new().write(true).open("/dev/console")?;
+    let mount_stderr = mount_stdout.try_clone()?;
     let mut mount = Command::new("/bin/busybox")
         .args(["mount", "-t", "proc", "proc", "/proc"])
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stdout(Stdio::from(mount_stdout))
+        .stderr(Stdio::from(mount_stderr))
         .spawn()?;
     if !wait_bounded(&mut mount, MOUNT_TIMEOUT)? {
         return Err(io::Error::other("guest /proc mount failed or timed out"));
