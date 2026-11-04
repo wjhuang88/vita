@@ -13,6 +13,10 @@ on:
       - "docs/backlog/active/VITA-001-B-iso-boot.md"
   workflow_dispatch:
 
+concurrency:
+  group: i002-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -21,8 +25,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate governance
-        run: sh scripts/validate_project_governance.sh .
+      - name: Syntax and governance gates
+        run: |
+          bash -n scripts/ci/validate_i001_boot.sh
+          python3 -m py_compile scripts/ci/observe_alpine_guest.py
+          sh scripts/validate_project_governance.sh .
 
   real-linux-iso:
     runs-on: ubuntu-latest
