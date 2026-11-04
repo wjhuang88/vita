@@ -38,3 +38,16 @@ Expected marker for both direct-ISO and Ventoy-backed boots: `VITA_I002_ALPINE_G
 ## Evidence state
 
 I002 execution evidence pending the initial GitHub Actions run. Do not infer Linux boot success from file staging or upstream documentation.
+
+## First CI observation and defect correction (2026-11-04)
+
+Run [41768331775](https://github.com/wjhuang88/vita/actions/runs/41768331775) at `c03077eb`:
+- governance and syntax checks **passed**;
+- I001 disposable Ventoy / BIOS / UEFI / user-probe smoke paths **passed**;
+- official unmodified Alpine 3.24.3 ISO SHA-256 verified as `cdc1bc0efc64d8d611bf3733f54868172a545888dfd726f518bf279bcb0ff1af`;
+- direct QEMU Alpine positive control **passed**: serial login, `uname -s` returned `Linux`, and `VITA_I002_GUEST_OK` printed from the guest shell;
+- Ventoy path reached **ISOLINUX 6.04 `boot:` prompt** in the guest serial log but did not auto-advance during the 180-second observation window.
+
+This is a real boot-menu handoff observation, not a checksum/VM failure. Correction: the guest observer now sends a single carriage return **only when it sees the exact ISOLINUX `boot:` prompt**, modeling an operator accepting the ISO's default boot entry, and records `VITA_I002_ISOLINUX_BOOT_PROMPT_ACCEPTED`. The independently observed image digest is now also hard-pinned after the upstream manifest check.
+
+Retest remains required; these findings do **not** establish successful Ventoy-backed Linux boot until a later run reaches the executed guest command marker.
