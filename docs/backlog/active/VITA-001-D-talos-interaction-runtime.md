@@ -1,6 +1,6 @@
 # VITA-001-D — Talos Core becomes the primary interactive OS session
 
-Status: Ready
+Status: Active (I003 — read-only system facts slice)
 
 As an operator,
 I want the system to enter a Talos Core-driven interaction environment by default,
@@ -46,3 +46,10 @@ The prototype registers a Vita-owned read-only `system_summary` capability and r
 Decision links: `../../decisions/ADR-0001-talos-primary-interaction-runtime.md`, `../../decisions/ADR-0002-governed-capability-broker.md`.
 Decision constraint: Talos is the primary interaction runtime; privileged actions pass through the broker.
 Minimum validation: host runtime compile/run proof + PTY/console integration test + Live VM smoke test.
+
+## I003 native-facts slice
+
+- Extract Linux-only, bounded, read-only system facts into `crates/vita-system-facts` with no additional language or library runtime.
+- Cover missing or malformed `/proc` fields, size boundaries and deterministic fixtures in Rust unit tests.
+- Feed the typed facts into the existing Talos `system_summary` tool without changing its Read permission classification or introducing shell execution.
+- The I003 test/embedding gate is **not the full Story acceptance**: real console/PTY and Live OS boot-to-session remain open, so do not close VITA-001-D merely from host tests.

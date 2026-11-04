@@ -8,7 +8,7 @@ It pins Talos to `261602242e49e6f921f5d3e4eac96eebbe92f8b3` and performs a deter
 2. register a Vita-owned `system_summary` `AgentTool`;
 3. allow only the Read nature required by that tool;
 4. use a deterministic fake `LanguageModel` to request the tool;
-5. read Linux facts directly from `/etc` and `/proc` without shell execution;
+5. read typed, bounded Linux facts from the reusable `vita-system-facts` crate (`/etc` and `/proc`, including optional uptime and total RAM) without shell execution;
 6. assert the turn succeeds and the structured capability actually executed;
 7. shut the runtime down normally.
 

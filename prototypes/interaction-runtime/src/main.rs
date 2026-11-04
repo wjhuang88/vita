@@ -90,15 +90,6 @@ struct SystemSummary {
     executed: Arc<AtomicBool>,
 }
 
-impl SystemSummary {
-    fn read_trimmed(path: &str) -> Option<String> {
-        std::fs::read_to_string(path)
-            .ok()
-            .map(|value| value.trim().to_owned())
-            .filter(|value| !value.is_empty())
-    }
-}
-
 #[async_trait]
 impl AgentTool for SystemSummary {
     fn name(&self) -> &str {
@@ -120,12 +111,15 @@ impl AgentTool for SystemSummary {
     async fn execute(&self, _input: Value) -> ToolResult {
         self.executed.store(true, Ordering::SeqCst);
 
+        let facts = vita_system_facts::inspect_linux();
         let summary = json!({
-            "os_release": Self::read_trimmed("/etc/os-release"),
-            "hostname": Self::read_trimmed("/proc/sys/kernel/hostname"),
-            "kernel": Self::read_trimmed("/proc/sys/kernel/osrelease"),
-            "architecture": std::env::consts::ARCH,
-            "family": std::env::consts::FAMILY,
+            "os_release": facts.os_release,
+            "hostname": facts.hostname,
+            "kernel": facts.kernel_release,
+            "architecture": facts.architecture,
+            "family": facts.family,
+            "uptime_seconds": facts.uptime_seconds,
+            "memory_total_kib": facts.memory_total_kib,
         });
 
         ToolResult::success(summary.to_string())
