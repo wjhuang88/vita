@@ -7,9 +7,9 @@
 ## HUMAN-001 — independent boot and privilege audit
 
 - [ ] **NEEDS HUMAN** — Inspect `scripts/ci/validate_i006_guest_session.sh`, the Python serial observer and `prototypes/guest-session-init/src/main.rs`. Verify no physical device target, host mount, destructive disk writer, unverified network code or credential is introduced.
-- [ ] **NEEDS HUMAN** — Review allowlisted BusyBox `mount -t proc proc /proc` call for guest-only scope, hard timeout and absence of an LLM-to-shell path.
+- [ ] **NEEDS HUMAN** — Review the constrained Rust-native `nix` mount of guest `/proc` with `nodev/noexec/nosuid` flags, and verify no generic mount authority is exposed to Talos.
 - [ ] **NEEDS HUMAN** — Confirm only the read-only Talos `system_summary` tool is enabled; default denial of unsafe operations is not bypassed by the guest host.
-- [ ] **NEEDS HUMAN** — Review Alpine Linux kernel and distro-packaged static BusyBox license, source and reproducible provenance before publishing an image. The CI's package snapshot is not a production-grade SBOM.
+- [ ] **NEEDS HUMAN** — Review Alpine Linux kernel, Rust/musl and `nix` dependency license/source provenance before publishing an image. CI source hashes are not a production-grade SBOM.
 
 ## HUMAN-002 — operator experience and recovery
 
@@ -26,7 +26,7 @@
 ## Evidence handoff (for another conversation)
 
 - Date, reviewer, exact Vita SHA and PR/CI URL:
-- Alpine ISO/kernel SHA, distro BusyBox package/sha/license:
+- Alpine ISO/kernel SHA, Rust/musl/nix source and licenses:
 - Console TTY/PTY environment and redacted transcript:
 - Boot-script / privilege review PASS/FAIL:
 - Recovery shell and Live ISO validation PASS/FAIL/NOT IMPLEMENTED:
