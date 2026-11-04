@@ -9,6 +9,9 @@ Create one portable USB medium that can both boot stored ISO images and boot its
 ## Product identity
 The Live OS is not “a toolbox containing Talos”. Talos Core provides the primary interactive system session and coordinates OS capabilities through a governed execution layer.
 
+## Cross-cutting implementation constraint
+The Vita-owned OS interaction, capability broker, system providers, config and audit are Rust-first per [ADR-0005](../../decisions/ADR-0005-rust-first-system-capabilities.md). Avoid extra application-language runtimes or routine shell command pipelines in the normal Live OS path; exceptions must be explicit and reviewed. This does not mandate rewriting Linux or proven boot software in Rust.
+
 ## Scope
 - Portable boot foundation.
 - ISO discovery/boot path.

@@ -14,6 +14,7 @@ Build a portable USB system that combines multi-ISO boot with an Agent-native Li
 8. **Owner documents are authoritative:** update backlog/iteration/decision/reference owners before the derived `docs/BOARD.md`.
 9. **Lessons and decisions write back:** recurring failures go to `EVOLUTION.md`; architectural tradeoffs affecting Soft/Assumption constraints go to `docs/decisions/`.
 10. **Governance refresh:** when local governance predates the installed `agent-project-governance` skill, audit the affected capability before trusting stale SOPs.
+11. **Rust-first Vita-owned system capabilities:** use Rust and native Linux interfaces for Vita interaction, providers, broker, config and audit wherever safe and feasible. No new app-language runtime or shell-command chains on the normal interaction path without a reviewed, documented exception. See ADR-0005.
 
 ## Coding Behavior
 - State material assumptions before implementing.
@@ -22,6 +23,7 @@ Build a portable USB system that combines multi-ISO boot with an Agent-native Li
 - Define verifiable success criteria before coding.
 - Remove only artifacts made obsolete by the current change.
 - Prefer explicit typed capability contracts over shell-string construction for OS operations.
+- Evaluate existing Talos/Rust crates and native kernel interfaces before adding subprocess dependencies; inventory shipped non-Rust tools and justify exceptions.
 - Treat boot code, storage operations and privilege transitions as high-risk surfaces requiring focused tests and review.
 
 ## Git Rules

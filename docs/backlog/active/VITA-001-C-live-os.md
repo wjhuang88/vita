@@ -8,6 +8,8 @@ Scope:
 - Kernel/initramfs/rootfs delivery.
 - Read-only base system plus defined writable runtime/data areas.
 - Required system tools and Talos runtime prerequisites.
+- Choose a minimal Linux userspace and document shipped binaries, native libraries, app-language runtimes, licenses and build-only dependencies.
+- Run the project-owned Talos session host as a native Rust process, without a scripting-language runtime requirement.
 - Boot-to-session handoff.
 
 Out of scope:
@@ -19,5 +21,11 @@ Acceptance:
   When the Live OS entry is selected
   Then the system reaches a usable local session without another installation step
   And the Talos interaction service can start.
+- Given a Live OS build is produced
+  When its runtime dependencies are inspected
+  Then normal Vita session startup requires no Python, Node.js or JVM unless an accepted exception is documented
+  And the recovery path remains usable without a network model endpoint.
+
+Decision: [ADR-0005](../../decisions/ADR-0005-rust-first-system-capabilities.md).
 
 Dependencies: VITA-001-A.
