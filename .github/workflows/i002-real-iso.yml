@@ -1,0 +1,40 @@
+name: I002 Real Linux ISO
+
+on:
+  push:
+    branches:
+      - "feat/i002-real-linux-iso"
+  pull_request:
+    paths:
+      - ".github/workflows/i002-real-iso.yml"
+      - "scripts/ci/validate_i001_boot.sh"
+      - "scripts/ci/observe_alpine_guest.py"
+      - "docs/iterations/I002-real-iso.md"
+      - "docs/backlog/active/VITA-001-B-iso-boot.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate governance
+        run: sh scripts/validate_project_governance.sh .
+
+  real-linux-iso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Direct Alpine boot and Ventoy-backed Alpine guest proof
+        run: VITA_I002_REAL_ISO=1 bash scripts/ci/validate_i001_boot.sh
+      - name: Upload serial logs even if the test fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i002-real-linux-serial
+          path: i002-boot-logs/
+          if-no-files-found: warn
