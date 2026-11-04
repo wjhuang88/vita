@@ -1,6 +1,6 @@
 # VITA-001-B — User can boot an ISO stored on the USB
 
-Status: Active (I002)
+Status: Blocked — Ventoy/Alpine guest boot compatibility, GitHub Issue #5
 
 
 As an operator,
@@ -36,3 +36,8 @@ Minimum validation: QEMU boot evidence plus checksum/test fixture record.
 - Store real guest logs as a workflow artifact. Do not interpret automatic ISO handoff alone as proof of visible menu listing.
 - **Residual acceptance:** menu presentation/selection evidence and corrupt/unsupported ISO behavior still require explicit tests before B can close.
 State owners: backlog, iteration, boot reference, release evidence.
+
+## I002 outcome
+- Positive controls passed: official Alpine ISO boots directly in BIOS and UEFI and runs a Linux guest shell command.
+- Ventoy BIOS, Ventoy UEFI normal mode and officially documented GRUB2 fallback all fail to reach Linux userspace in CI; see [Issue #5](https://github.com/wjhuang88/vita/issues/5).
+- Full acceptance remains open (actual real-ISO boot; menu visibility; corrupt-image diagnostics). I002 = Partial, PR #4 remains Draft and unmerged. This is not evidence of real-distro compatibility.

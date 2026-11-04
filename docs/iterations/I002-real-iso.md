@@ -1,6 +1,6 @@
 # I002 — Real Linux ISO compatibility slice
 
-Status: Active
+Status: Partial — real ISO negative compatibility proof; acceptance blocked by #5
 Published baseline: 2026-11-04
 Selected Ready work: VITA-001-B
 Risk profile: high-risk boot/media workflow; VM-only
@@ -32,12 +32,12 @@ Expected marker for both direct-ISO and Ventoy-backed boots: `VITA_I002_ALPINE_G
 
 - Not a complete Vita Live OS, Talos console, privilege broker, Secure Boot solution or physical USB installer.
 - Does not certify all Linux distributions or images.
-- **VITA-001-B will remain Active** until independently validated interactive menu visibility and corrupt/unsupported ISO failure behavior are recorded. A successful auto-selection alone does not close those acceptance conditions.
+- **VITA-001-B is Blocked** by the Ventoy/Alpine guest boot compatibility failure, tracked in [Issue #5](https://github.com/wjhuang88/vita/issues/5). Visible menu selection and invalid-image failure handling also remain unverified.
 - Python is CI-only observer code, not an added Vita runtime dependency.
 
 ## Evidence state
 
-I002 execution evidence pending the initial GitHub Actions run. Do not infer Linux boot success from file staging or upstream documentation.
+Initial evidence was recorded in four subsequent CI experiments below. The full I002 acceptance was **not** met.
 
 ## First CI observation and defect correction (2026-11-04)
 
@@ -74,3 +74,14 @@ Run [41769831996](https://github.com/wjhuang88/vita/actions/runs/41769831996):
 Primary reference: https://www.ventoy.net/en/doc_name_identifier.html ; https://www.ventoy.net/en/doc_grub2boot.html .
 
 If the documented fallback does not boot a real guest, treat this fixture as a demonstrated compatibility blocker; do not close VITA-001-B or promote I002 to a successful real-ISO deliverable.
+
+## Fourth CI observation and I002 partial closeout (2026-11-04)
+
+Run [41770647347](https://github.com/wjhuang88/vita/actions/runs/41770647347), commit `360731f46c367b2cb04275be2ca6d0d0314b437d`:
+- Governance validation: **success**; independent I001 baseline workflow [41770647291](https://github.com/wjhuang88/vita/actions/runs/41770647291): **success** (governance, Talos embedding and probe boot).
+- Official Alpine 3.24.3 SHA-256 still pinned: `cdc1bc0efc64d8d611bf3733f54868172a545888dfd726f518bf279bcb0ff1af`.
+- Direct QEMU Alpine BIOS and OVMF/UEFI: **success**, both logged into guest and executed `uname -s` (`Linux`) and `VITA_I002_GUEST_OK`.
+- Ventoy / OVMF with a byte-identical Alpine ISO copy renamed `_VTGRUB2.iso`: **failure**. Guest reached GNU GRUB 2.04 and `Booting 'Linux virt'`, then no Alpine login or executed marker within 210 seconds.
+- Evidence archive: [i002-real-linux-serial](https://github.com/wjhuang88/vita/actions/runs/41770647347/artifacts/13294702714), including direct and Ventoy guest serial logs. This is a real system boot compatibility defect, **not** a passing result.
+
+**Disposition: Partial.** The test harness, source integrity checks, positive controls, exact observed handoff symptoms and bounded failure evidence are delivered. The core acceptance of booting a representative Linux distribution ISO from Ventoy is **not** met. VITA-001-B remains Blocked with [Issue #5](https://github.com/wjhuang88/vita/issues/5) as the diagnosis owner. Existing PR #4 remains Draft/unmerged; do not weaken CI or mislabel this as a full compatible distro boot. Future attempts should investigate the VM/Ventoy-to-kernel ISO media handoff based on concrete boot logs, not arbitrary menu mode retries.
