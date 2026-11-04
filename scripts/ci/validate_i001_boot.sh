@@ -192,6 +192,11 @@ if [[ -n "$(env | grep '^VITA_I002_REAL_ISO=1$' || true)" ]]; then
   python3 "$ROOT_DIR/scripts/ci/observe_alpine_guest.py" \
     --iso "$WORK_DIR/$ALPINE_NAME" --label direct-bios --log-dir "$LOG_DIR" --timeout 150
 
+  echo "[I002] Positive control: original Alpine ISO under OVMF x86_64 UEFI"
+  python3 "$ROOT_DIR/scripts/ci/observe_alpine_guest.py" \
+    --iso "$WORK_DIR/$ALPINE_NAME" --firmware uefi \
+    --label direct-uefi --log-dir "$LOG_DIR" --timeout 180
+
   echo "[I002] Stage Alpine alongside Vita ISO on the same verified temporary disk"
   LOOP_DEVICE="$(sudo losetup --find --show --partscan "$RAW_IMAGE")"
   assert_disposable_loop
@@ -207,8 +212,9 @@ if [[ -n "$(env | grep '^VITA_I002_REAL_ISO=1$' || true)" ]]; then
   sudo losetup -d "$LOOP_DEVICE"
   LOOP_DEVICE=""
 
-  echo "[I002] Verify Ventoy discovers, hands off, and boots Alpine into its Linux shell"
+  echo "[I002] Verify Ventoy/UEFI discovers and boots the original Alpine ISO into Linux"
   python3 "$ROOT_DIR/scripts/ci/observe_alpine_guest.py" \
-    --disk "$RAW_IMAGE" --label ventoy-bios --log-dir "$LOG_DIR" --timeout 180
+    --disk "$RAW_IMAGE" --firmware uefi \
+    --label ventoy-uefi --log-dir "$LOG_DIR" --timeout 210
   echo "VITA_I002_REAL_ISO_BOOT_OK alpine=$ALPINE_VERSION sha256=$ALPINE_SHA256"
 fi
