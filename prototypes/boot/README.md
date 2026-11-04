@@ -1,30 +1,31 @@
-# I001 Boot Prototype Staging
+# I001 — Ventoy / QEMU Boot Probe
 
-This directory contains the non-destructive configuration side of the selected Phase 1 boot architecture.
+The selected Phase 1 design uses a pinned, unmodified Ventoy boot compatibility substrate, with Vita owning the future Live OS and its default boot entry.
 
-## Selected shape
+- Product boot configuration: [ventoy/ventoy.json](ventoy/ventoy.json)
+- Default configured ISO path: `/iso/vita/vita-live.iso`
+- User ISO discovery root: `/iso`
+- Portable Talos/Vita data: `/talos` (outside the ISO search root)
 
-- Ventoy is an unmodified, pinned third-party boot substrate.
-- Vita owns `ventoy.json`, the Vita Live ISO, and everything after that ISO starts.
-- User boot images live under `/iso/` and remain dynamically discoverable.
-- The default Vita image path is `/iso/vita/vita-live.iso`.
-- Portable Talos/Vita data remains outside the Ventoy search root under `/talos/`.
+## Verified I001 proof
 
-`ventoy/ventoy.json` is a staging template for the future image builder. It does not write to a disk.
+CI installed Ventoy 1.1.18 on a verified temporary loop-backed raw image, copied a Vita GRUB probe ISO and a second probe ISO, and booted via QEMU:
 
-## QEMU proof still required
+```text
+VITA_BOOT_PROBE_OK mode=bios marker=VITA_BOOT_OK
+VITA_BOOT_PROBE_OK mode=uefi marker=VITA_BOOT_OK
+VITA_BOOT_PROBE_OK mode=bios marker=VITA_USER_ISO_BOOT_OK
+VITA_I001_BOOT_CHAIN_OK ventoy=1.1.18
+```
 
-VITA-001-A remains open until an automated or controlled-host proof:
+Evidence: [GitHub Actions run 41660883827](https://github.com/wjhuang88/vita/actions/runs/41660883827), [archived VITA-001-A](../../docs/backlog/archive/VITA-001-A-boot-strategy-spike.md).
 
-1. installs the pinned Ventoy release into a disposable raw disk image;
-2. copies this configuration plus a minimal Vita bootable ISO into the data partition;
-3. boots the raw image in QEMU through the initial BIOS/UEFI matrix;
-4. verifies the default image reaches a deterministic Vita marker;
-5. verifies a second user ISO remains selectable;
-6. records the exact version, hash, commands, firmware mode, and result.
+Run the test script on a **disposable Linux VM/CI runner** only:
 
-The environment used for the first research pass does not provide QEMU, GRUB tooling, xorriso, or squashfs tools, so no VM success is claimed yet.
+```sh
+bash scripts/ci/validate_i001_boot.sh
+```
 
-## Safety
+The script must keep its hard-coded temporary raw-file/loop-device identity checks. Do not modify it to accept a physical disk path.
 
-Do not turn this prototype into a script that accepts an arbitrary block-device path. Physical media installation remains prohibited until the disposable-image VM path passes and target-device identity/refusal rules are implemented.
+**Not proven by this test:** Linux rootfs, interactive Vita session, third-party distro ISO compatibility, Secure Boot or physical USB hardware. Those are later stories.

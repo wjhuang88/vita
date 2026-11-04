@@ -105,12 +105,12 @@ Confirmed:
 - Talos can be embedded below the CLI/TUI boundary through a supported project API.
 - Custom structured tools and explicit permission policy are supported.
 - Vita can own console/UI and lifecycle while using Talos for the Agent turn loop.
+- The Vita Rust embedding prototype compiled and executed under Rust 1.99.0 in the completed I001 GitHub Actions run `41660883827`, emitting `VITA_I001_TALOS_RUNTIME_OK`.
 
 Still to validate in Vita:
-- actual compilation of the Vita prototype against the pinned Talos revision;
 - event rendering suitable for a real console/PTY;
 - cancellation and crash recovery behavior in a Live OS session;
 - privileged broker integration beyond the initial read-only capability;
 - final provider/config construction contract.
 
-The repository contains `prototypes/interaction-runtime/` as the first compile/run proof. GitHub CI is used because the current execution environment does not provide Rust tooling.
+The repository contains `prototypes/interaction-runtime/` as the first compile/run proof. I001 CI provides reproducible host-level SDK integration evidence; the runnable Live OS session remains future work.

@@ -47,4 +47,4 @@ This does not imply replacing Linux, firmware, the boot substrate, required nati
 A CLI launched from bash leaves bash as the primary environment and tends to inherit CLI-era assumptions. The project instead needs a reusable runtime boundary built on Talos Core so boot/session lifecycle, system context, privileges, policy and audit are first-class.
 
 ## Boot boundary
-The exact ISO boot substrate remains unresolved pending VITA-001-A. The product requirement is capability-based, not implementation-based: stored ISO boot + project Live OS + upgrade path that preserves user data where feasible.
+VITA-001-A completed its Phase 1 boot decision and deterministic BIOS/UEFI VM proof. The selected approach is a pinned, unmodified Ventoy compatibility substrate with Vita-owned Live OS and runtime above it (ADR-0004). The proof used boot-stub ISO images, not a finished Live Linux OS or a real distribution compatibility matrix; physical firmware and Secure Boot remain open gates.

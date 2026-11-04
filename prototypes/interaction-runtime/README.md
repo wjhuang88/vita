@@ -24,6 +24,6 @@ Run from this directory:
 cargo run
 ```
 
-The local tool environment used to create this prototype did not provide Cargo/Rust, so the authoritative first execution evidence is the GitHub Actions job in `.github/workflows/i001-foundation.yml`.
+The embedding prototype compiled and ran successfully in [GitHub Actions run 41660883827](https://github.com/wjhuang88/vita/actions/runs/41660883827) using Rust 1.99.0. The command above is equivalent to the tested CI entrypoint.
 
 This prototype is not the final Vita interaction UI, capability broker, provider configuration, or privileged execution path.
