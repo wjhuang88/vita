@@ -4,11 +4,11 @@
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-const MOUNT_TIMEOUT: Duration = Duration::from_secs(5);
+const PROC_DIR: &str = "/proc";
 const SESSION_BINARY: &str = "/vita/vita-interaction-prototype";
 
 fn serial_line(line: &str) {
@@ -20,40 +20,24 @@ fn serial_line(line: &str) {
     }
 }
 
-fn wait_bounded(child: &mut Child, limit: Duration) -> io::Result<bool> {
-    let deadline = Instant::now() + limit;
-    loop {
-        if let Some(status) = child.try_wait()? {
-            return Ok(status.success());
-        }
-        if Instant::now() >= deadline {
-            child.kill()?;
-            let _ = child.wait();
-            return Ok(false);
-        }
-        thread::sleep(Duration::from_millis(20));
-    }
-}
-
 fn boot() -> io::Result<()> {
     if std::process::id() != 1 {
         return Err(io::Error::other("guest init must be Linux PID 1"));
     }
     serial_line("VITA_I006_GUEST_PID1_OK");
 
-    // A fixed, boot-only guest mount command. This tool is not available to
-    // the agent and cannot affect host mount namespaces or any disk target.
-    let mount_stdout = OpenOptions::new().write(true).open("/dev/console")?;
-    let mount_stderr = mount_stdout.try_clone()?;
-    let mut mount = Command::new("/bin/busybox")
-        .args(["mount", "-t", "proc", "proc", "/proc"])
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(mount_stdout))
-        .stderr(Stdio::from(mount_stderr))
-        .spawn()?;
-    if !wait_bounded(&mut mount, MOUNT_TIMEOUT)? {
-        return Err(io::Error::other("guest /proc mount failed or timed out"));
-    }
+    // Rust-native guest-only procfs mount, with fixed, restrictive flags.
+    // No model-exposed mount authority or external boot subprocess.
+    nix::mount::mount(
+        Some("proc"),
+        PROC_DIR,
+        Some("proc"),
+        nix::mount::MsFlags::MS_NODEV
+            | nix::mount::MsFlags::MS_NOEXEC
+            | nix::mount::MsFlags::MS_NOSUID,
+        None::<&str>,
+    )
+    .map_err(|err| io::Error::other(format!("guest proc mount syscall failed: {err}")))?;
     if fs::read_to_string("/proc/uptime")?.trim().is_empty() {
         return Err(io::Error::other("guest /proc was not mounted"));
     }
@@ -94,7 +78,7 @@ mod tests {
 
     #[test]
     fn mount_is_fixed_and_time_bounded() {
-        assert_eq!(MOUNT_TIMEOUT, Duration::from_secs(5));
+        assert_eq!(PROC_DIR, "/proc");
         assert_eq!(SESSION_BINARY, "/vita/vita-interaction-prototype");
     }
 }

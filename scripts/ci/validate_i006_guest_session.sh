@@ -16,18 +16,11 @@ trap cleanup EXIT
 [[ "$(uname -m)" == "x86_64" ]] || fail "x86_64 Linux host only"
 mkdir -p "$LOG_DIR"
 
-echo "[I006] Install host-only QEMU/build packages and guest static BusyBox"
+echo "[I006] Install host-only QEMU and static Rust build tools"
 sudo apt-get update -qq
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-  qemu-system-x86 xorriso cpio gzip binutils musl-tools busybox-static \
+  qemu-system-x86 xorriso cpio gzip binutils musl-tools \
   curl cmake clang pkg-config build-essential >/dev/null
-BUSYBOX="$(command -v busybox)"
-[[ -x "$BUSYBOX" ]] || fail "static BusyBox missing"
-if readelf -l "$BUSYBOX" | grep -q 'INTERP'; then
-  fail "BusyBox must be a static executable"
-fi
-sha256sum "$BUSYBOX" >"$LOG_DIR/busybox.sha256"
-
 echo "[I006] Verify Alpine virt 3.24.3 ISO and exact I005 kernel"
 curl --fail --location --retry 3 --silent --show-error "$ISO_URL" -o "$WORK_DIR/$ISO_NAME"
 echo "$ISO_SHA256  $WORK_DIR/$ISO_NAME" | sha256sum --check --status \
@@ -60,12 +53,10 @@ done
 
 echo "[I006] Build isolated initramfs (no physical target or guest drive)"
 mkdir -p "$WORK_DIR/root/dev" "$WORK_DIR/root/proc" "$WORK_DIR/root/tmp" \
-  "$WORK_DIR/root/bin" "$WORK_DIR/root/vita" "$WORK_DIR/root/etc"
+  "$WORK_DIR/root/vita" "$WORK_DIR/root/etc"
 cp "$INIT" "$WORK_DIR/root/init"
 cp "$TALOS" "$WORK_DIR/root/vita/vita-interaction-prototype"
-cp "$BUSYBOX" "$WORK_DIR/root/bin/busybox"
-chmod 0755 "$WORK_DIR/root/init" "$WORK_DIR/root/vita/vita-interaction-prototype" \
-  "$WORK_DIR/root/bin/busybox"
+chmod 0755 "$WORK_DIR/root/init" "$WORK_DIR/root/vita/vita-interaction-prototype"
 # ONLY character-device nodes under the brand-new disposable initramfs tree.
 sudo mknod -m 0600 "$WORK_DIR/root/dev/console" c 5 1
 sudo mknod -m 0600 "$WORK_DIR/root/dev/ttyS0" c 4 64
