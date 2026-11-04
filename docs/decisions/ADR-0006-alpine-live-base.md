@@ -46,3 +46,7 @@ No distributable image or source-compliance claim is made from this one-off test
 - Reverse the Alpine-base choice if its licensing, security lifecycle, hardware modules, Talos dependencies, package footprint or live-image boot compatibility fails product requirements. Do not silently switch distributions or pretend a Linux init proof resolves the Ventoy issue.
 
 Related: [ADR-0004](ADR-0004-hybrid-ventoy-boot-substrate.md), [ADR-0005](ADR-0005-rust-first-system-capabilities.md).
+
+## I005 verified experiment (2026-11-04)
+
+[CI 41791034664](https://github.com/wjhuang88/vita/actions/runs/41791034664) successfully booted the SHA-256-pinned Alpine virt kernel `17fbd3efd16f2e7cb1b945f06423b37399ba7d5ac8cdd3665e7f13f363500e85` with a disposable static Rust initramfs under QEMU. Linux serial reported Vita Rust PID 1. This confirms the direct kernel/user-space boundary only; the future Alpine userspace package and Live ISO contract still require testing and license review.

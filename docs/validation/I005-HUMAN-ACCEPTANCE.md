@@ -1,6 +1,8 @@
 # I005 — human validation and later-stage handoff
 
 **Status: HUMAN REVIEW / FUTURE HARDWARE VALIDATION PENDING**
+
+**Automated I005 boot evidence: PASSED** — [CI 41791034664](https://github.com/wjhuang88/vita/actions/runs/41791034664), with an actual Linux QEMU serial PID 1 marker. The human checkboxes below are still unchecked; do not conflate them with CI.
 **Scope:** I005 isolated Linux kernel / Rust PID 1 boot proof. This is **not** a usable Vita Live OS image or a USB installer. Intended for completion in another conversation.
 
 ## MANUAL-001 — independent kernel/initramfs review

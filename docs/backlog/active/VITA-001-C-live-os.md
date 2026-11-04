@@ -37,6 +37,6 @@ Dependencies: VITA-001-A.
 
 The missing minimal-Linux-base decision is resolved for the first experiment by ADR-0006: Alpine virt 3.24.3 kernel/musl, with Vita-owned Rust host and a mature init/recovery path in the eventual full Live image. The dependency VITA-001-A is already Complete. This Story can advance to Active, but I005 is only a **direct QEMU kernel-to-Rust process proof**, not its full acceptance.
 
-- Implemented path (pending CI): verified Alpine kernel -> throwaway initramfs -> statically compiled Vita Rust PID 1 -> real guest serial marker.
+- Implemented and proven in [CI 41791034664](https://github.com/wjhuang88/vita/actions/runs/41791034664): verified Alpine kernel -> throwaway initramfs -> statically compiled Vita Rust PID 1 -> real Linux guest serial marker. This is a boot proof, not a full OS.
 - Unimplemented: complete rootfs/service manager, default Talos session, writable runtime/data, physical/UEFI firmware boot, independent offline recovery and distributable image.
 - Manual decisions/reviews: [I005 handoff](../../validation/I005-HUMAN-ACCEPTANCE.md). Separate Ventoy real ISO blocker remains [Issue #5](https://github.com/wjhuang88/vita/issues/5).

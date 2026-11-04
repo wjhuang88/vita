@@ -13,7 +13,7 @@ Vita is an open-source, **Rust-first, agent-native portable operating environmen
 [**简体中文**](README.zh-CN.md) · [Architecture](docs/reference/SYSTEM-ARCHITECTURE.md) · [Roadmap](docs/roadmap/IMPLEMENTATION-ROADMAP.md) · [Contributing](CONTRIBUTING.md)
 
 > [!IMPORTANT]
-> **Pre-alpha / engineering preview.** Vita does not yet ship an end-user Live OS ISO or a USB installer. The repository currently contains validated boot-chain **probe images** and a standalone Talos Runtime embedding prototype. Please do not treat them as a production operating system.
+> **Pre-alpha / engineering preview.** Vita does not yet ship an end-user Live OS ISO or a USB installer. The repository contains validated boot-chain **probe images**, a direct Linux kernel-to-Rust PID 1 VM proof, and a standalone Talos Runtime/console prototype. These are separate experiments, **not** a complete boot-to-Talos operating system.
 
 ## What we're building
 
@@ -64,7 +64,8 @@ Read [ADR-0004](docs/decisions/ADR-0004-hybrid-ventoy-boot-substrate.md) (boot),
 | Second user probe ISO, legacy BIOS | **Proven in QEMU** | `VITA_USER_ISO_BOOT_OK` guest marker |
 | Embedded Talos Runtime + read-only `system_summary` | **Proven in CI** | Rust prototype executes a deterministic, offline agent turn without a shell |
 | Representative third-party Linux ISO boot | **Next** | VITA-001-B |
-| Real Vita Linux kernel/initramfs/rootfs and session | **Not yet built** | I005 begins a Linux kernel/Rust PID 1 VM proof, not a usable Live OS; VITA-001-C + D |
+| Real Linux kernel -> Vita Rust PID 1 | **Proven in QEMU (direct)** | I005; not a Live rootfs, Talos session or ISO |
+| Usable Vita Live rootfs/default Talos session | **Not yet built** | VITA-001-C + D |
 | Governed privileged operations, recovery, persistence | **Planned** | VITA-001-E/F/G |
 | Secure Boot, physical-device matrix, releasable image | **Not yet validated** | VITA-001-H and later release hardening |
 
@@ -179,4 +180,4 @@ Vita's Phase 1 boot plan uses **Ventoy**, whose own work is licensed **GPLv3+**,
 
 ## Next Live Linux milestone (I005, experimental)
 
-The [I005 direct Linux boot test](prototypes/live-init/) targets a verified Alpine kernel and a **static Rust init probe**, then requires a QEMU serial marker from real guest Linux PID 1. This is explicitly an engineering *kernel-to-Rust user-space* proof, **not** the final Vita Live ISO, a Talos session, or a physical-USB writer. See [ADR-0006](docs/decisions/ADR-0006-alpine-live-base.md) and the [human review checklist](docs/validation/I005-HUMAN-ACCEPTANCE.md). Once CI passes, the separate Live rootfs and default Talos session will remain to be built.
+The [I005 direct Linux boot test](prototypes/live-init/) has **passed CI** with a verified Alpine kernel and a **static Rust init probe**; [run 41791034664](https://github.com/wjhuang88/vita/actions/runs/41791034664) captured the serial marker from real guest Linux PID 1. This is explicitly an engineering *kernel-to-Rust user-space* proof, **not** the final Vita Live ISO, a Talos session, or a physical-USB writer. See [ADR-0006](docs/decisions/ADR-0006-alpine-live-base.md) and the [human review checklist](docs/validation/I005-HUMAN-ACCEPTANCE.md). The separate Live rootfs and default Talos session remain to be built.

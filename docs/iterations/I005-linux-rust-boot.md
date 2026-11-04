@@ -1,6 +1,7 @@
 # I005 — Real Linux kernel boot into Vita-owned Rust user-space
 
-Status: Active
+Status: Complete
+Completed: 2026-11-04
 Published baseline: 2026-11-04
 Selected work: VITA-001-C (Refinement -> Ready via ADR-0006 -> Active for this slice)
 Risk: Linux kernel/initramfs change; QEMU only; no installation or physical-media writes.
@@ -31,4 +32,20 @@ See [I005 human acceptance](../validation/I005-HUMAN-ACCEPTANCE.md). Any high-ri
 
 ## Evidence
 
-Pending first CI execution.
+## Final CI execution — 2026-11-04
+
+[GitHub Actions run 41791034664](https://github.com/wjhuang88/vita/actions/runs/41791034664), source `9191b0081026350956893ce4a2c97004d74392a8`:
+
+- `governance`: **success**.
+- `rust-linux-boot`: **success**. `bash -n` and pinned Rust 1.99 `cargo fmt --check` passed.
+- Retrieved official Alpine virt 3.24.3 ISO and matched hard-pinned SHA-256 `cdc1bc0efc64d8d611bf3733f54868172a545888dfd726f518bf279bcb0ff1af`.
+- Extracted upstream kernel SHA-256 `17fbd3efd16f2e7cb1b945f06423b37399ba7d5ac8cdd3665e7f13f363500e85`.
+- Statically built Vita Rust `/init` for `x86_64-unknown-linux-musl`; the ELF interpreter check passed.
+- Generated an isolated cpio initramfs; real Linux QEMU serial output contained exactly `VITA_I005_LINUX_RUST_INIT_OK pid=1 arch=x86_64`. End marker: `VITA_I005_LIVE_KERNEL_PROOF_OK`.
+- Original attempt [41790880344](https://github.com/wjhuang88/vita/actions/runs/41790880344) failed before boot because minimal Rust 1.99 lacked `rustfmt`; fixed by explicitly installing the pinned component. It was not a Linux boot failure.
+
+## Closure
+
+**I005 Complete** for the *direct Linux kernel -> Vita Rust PID 1 proof*. **VITA-001-C remains Active and incomplete**, because the boot probe is not a usable Live OS: no normal init/service manager, rootfs, Talos default session, offline recovery, firmware/USB boot or distribution image. Future I006 must integrate an actual minimal rootfs and Talos session, then prove boot via product ISO and Ventoy separately.
+
+Manual review and device-related gates remain **PENDING** in [I005 human checklist](../validation/I005-HUMAN-ACCEPTANCE.md). Nothing physical was flashed or inspected.
