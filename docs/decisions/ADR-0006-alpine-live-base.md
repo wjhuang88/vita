@@ -50,3 +50,9 @@ Related: [ADR-0004](ADR-0004-hybrid-ventoy-boot-substrate.md), [ADR-0005](ADR-00
 ## I005 verified experiment (2026-11-04)
 
 [CI 41791034664](https://github.com/wjhuang88/vita/actions/runs/41791034664) successfully booted the SHA-256-pinned Alpine virt kernel `17fbd3efd16f2e7cb1b945f06423b37399ba7d5ac8cdd3665e7f13f363500e85` with a disposable static Rust initramfs under QEMU. Linux serial reported Vita Rust PID 1. This confirms the direct kernel/user-space boundary only; the future Alpine userspace package and Live ISO contract still require testing and license review.
+
+## I006 extension — boot-only static BusyBox exception
+
+I006 retains the unchanged Alpine virt 3.24.3 kernel, and adds an **explicit one-off** packaged static BusyBox binary to run the fixed `mount -t proc proc /proc` boot operation (five-second bounded execution) inside a disposable QEMU initramfs. The Vita interaction process is still Rust-only, based on the supported Talos Runtime facade, and exposes only read-only system Tool semantics. BusyBox is not in the model's tool inventory.
+
+This temporary boot helper is an ADR-0005 exception, not an endorsement of model-driven shell pipelines or Rust PID 1 for the final distribution. The exact BusyBox package/version and SHA-256 are captured in CI logs, not yet pinned for redistribution. **License/source compliance and target-minimal-userspace selection require manual review** before publishing a Live ISO. Only the QEMU prototype is within the accepted I006 scope.
