@@ -84,7 +84,7 @@ fn parse_uptime_seconds(text: &str) -> Option<u64> {
 fn parse_memory_total_kib(text: &str) -> Option<u64> {
     for line in text.lines() {
         let mut tokens = line.split_whitespace();
-        if tokens.next()? != "MemTotal:" {
+        if tokens.next() != Some("MemTotal:") {
             continue;
         }
         let size = tokens.next()?.parse::<u64>().ok()?;
