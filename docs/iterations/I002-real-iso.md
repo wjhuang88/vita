@@ -60,3 +60,17 @@ Run [41769007122](https://github.com/wjhuang88/vita/actions/runs/41769007122):
 - Even after Enter, the serial stream remained at ISOLINUX and no Linux guest command proof appeared. This is an **unresolved BIOS compatibility outcome**; extending the timeout or treating the prompt as success would be misleading.
 
 Vita's primary firmware target is x86_64 UEFI. The next targeted experiment adds a positive-control **direct OVMF boot of the original Alpine ISO**, then a Ventoy-backed OVMF boot of that same ISO. The test emits the same in-guest `uname -s` and `VITA_I002_GUEST_OK` proof. BIOS compatibility remains explicitly open for future diagnosis and is not silently counted as passing.
+
+## Third CI observation: UEFI loader reached but Linux guest did not (2026-11-04)
+
+Run [41769831996](https://github.com/wjhuang88/vita/actions/runs/41769831996):
+- The **same unmodified Alpine ISO** boots directly under OVMF x86_64 UEFI to serial login, a root shell, `uname -s` = `Linux`, and `VITA_I002_GUEST_OK`.
+- On the Ventoy-backed UEFI disk the ISO's GRUB reached `Booting 'Linux virt'` but produced no subsequent Linux guest serial login/command marker before the 210-second bound.
+- I001 probe BIOS/UEFI and runtime CI regression checks remain green.
+- Both BIOS ISOLINUX and UEFI GRUB observations are tracked in [Issue #5](https://github.com/wjhuang88/vita/issues/5), rather than being treated as supported behavior.
+
+**Bounded fourth experiment:** Ventoy officially documents a GRUB2 alternate mode for problematic Linux ISOs and an `_VTGRUB2.iso` filename identifier. Keep the official Alpine ISO bytes unchanged (verify its copied SHA-256 equals the original) and select the specially named copy through Ventoy. This is a boot-mode experiment, not a product decision to rename arbitrary user files or to claim generic Linux compatibility.
+
+Primary reference: https://www.ventoy.net/en/doc_name_identifier.html ; https://www.ventoy.net/en/doc_grub2boot.html .
+
+If the documented fallback does not boot a real guest, treat this fixture as a demonstrated compatibility blocker; do not close VITA-001-B or promote I002 to a successful real-ISO deliverable.
