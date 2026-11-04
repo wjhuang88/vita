@@ -56,7 +56,7 @@ Vita 是一个开源的、**Rust-first 的 Agent 原生便携操作环境**。�
 | BIOS 启动 Vita 测试 ISO | **QEMU 已通过**：`VITA_BOOT_OK` |
 | x86_64 UEFI / OVMF 启动 Vita 测试 ISO | **QEMU 已通过**：`VITA_BOOT_OK` |
 | BIOS 启动第二个用户测试 ISO | **QEMU 已通过**：`VITA_USER_ISO_BOOT_OK` |
-| Rust 直接嵌入 Talos Runtime，执行只读 `system_summary` | **CI 已通过**：`VITA_I001_TALOS_RUNTIME_OK` |
+| Rust 直接嵌入 Talos Runtime，使用独立的 [vita-system-facts](crates/vita-system-facts/) Rust 模块执行只读 `system_summary` | **CI 已通过**：`VITA_I001_TALOS_RUNTIME_OK` |
 | 真实第三方 Linux ISO 启动 | **待实现** |
 | Vita Linux Live OS（内核、rootfs、会话） | **待实现** |
 | 完整权限代理、配置持久化、恢复机制 | **待实现** |

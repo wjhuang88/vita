@@ -29,6 +29,10 @@ The Live OS build records shipped binary/package, its role, native libraries, an
 
 If a provider cannot safely use a Rust-native API, its narrow adapter declares executable/IPC identity, typed arguments, bounded output, locale/format expectations, privileges, timeouts and error/audit semantics. There is no generic run_shell_as_root capability.
 
+## First extracted provider (I003)
+
+`crates/vita-system-facts` is an implemented no-dependency Rust library for bounded, read-only Linux system summary fields. It is invoked through `prototypes/interaction-runtime` with Talos' explicit Read permission rule and tested with deterministic fixture paths. Its 4 unit tests and integrated Talos tool execution passed in [CI run 41772155509](https://github.com/wjhuang88/vita/actions/runs/41772155509). This is **not** a complete capability broker, service manager or disk-inventory API.
+
 ## Validation
 
 - system_summary and first read-only inventory execute without a shell subprocess.
