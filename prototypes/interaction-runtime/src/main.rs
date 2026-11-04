@@ -1,3 +1,5 @@
+mod console;
+
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -136,6 +138,13 @@ impl AgentTool for SystemSummary {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args == ["--console-fixture"] {
+        return console::run().await;
+    }
+    if !args.is_empty() {
+        return Err("usage: vita-interaction-prototype [--console-fixture]".into());
+    }
     let executed = Arc::new(AtomicBool::new(false));
     let provider: Arc<dyn LanguageModel> = Arc::new(
         DeterministicProvider::new()

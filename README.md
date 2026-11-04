@@ -112,6 +112,16 @@ This script installs host testing dependencies, downloads and checksum-verifies 
 > [!CAUTION]
 > The harness uses `sudo`, installs packages, and runs a boot-media installer against a temporary **file-backed loop device**. Review the script before executing it; use an isolated VM/runner. **Never substitute a real disk path** or treat this command as an installer for a physical USB drive.
 
+## Offline native-console prototype (I004)
+
+The host-side Rust console is an **offline deterministic fixture**, not a released operating system or real LLM client. It drives the actual Talos Runtime event stream and registered read-only system tool:
+
+```sh
+cargo +1.99.0 run --manifest-path prototypes/interaction-runtime/Cargo.toml -- --console-fixture
+```
+
+Use `:help` for commands; `demo:error` and `demo:slow` are fixtures for provider error and cancellation. Manual TTY/PTY, human security review and deferred Live OS recovery gates are tracked in the [I004 human acceptance checklist](docs/validation/I004-HUMAN-ACCEPTANCE.md).
+
 ## Planned portable data layout
 
 The following is the **Phase 1 logical contract**, not a ready-to-flash image:

@@ -35,9 +35,27 @@ jobs:
         run: rustup toolchain install 1.99.0 --profile minimal
       - name: Test Rust-native Vita system facts
         run: cargo +1.99.0 test --manifest-path crates/vita-system-facts/Cargo.toml
+      - name: Test Vita console parser and event rendering
+        run: cargo +1.99.0 test --manifest-path prototypes/interaction-runtime/Cargo.toml
       - name: Run Vita Talos embedding prototype
         working-directory: prototypes/interaction-runtime
         run: cargo +1.99.0 run
+      - name: Exercise multi-turn console and provider error recovery
+        working-directory: prototypes/interaction-runtime
+        run: |
+          printf 'inspect\ndemo:error\ninspect again\n:quit\n' | cargo +1.99.0 run -- --console-fixture | tee /tmp/vita-console.log
+          grep -Fq 'VITA_CONSOLE_EXIT_OK' /tmp/vita-console.log
+          test "$(grep -Fc '[turn:ok]' /tmp/vita-console.log)" -eq 2
+          grep -Fq '[turn:error]' /tmp/vita-console.log
+          grep -Fq '[tool] system_summary' /tmp/vita-console.log
+      - name: Test active-turn cancellation and next-turn recovery
+        working-directory: prototypes/interaction-runtime
+        run: |
+          { printf 'demo:slow\n'; sleep 2; printf ':cancel\ninspect\n:quit\n'; } | timeout 45s cargo +1.99.0 run -- --console-fixture | tee /tmp/vita-cancel.log
+          grep -Fq '[interrupt requested]' /tmp/vita-cancel.log
+          grep -Fq '[turn:cancelled]' /tmp/vita-cancel.log
+          grep -Fq '[turn:ok]' /tmp/vita-cancel.log
+          grep -Fq 'VITA_CONSOLE_EXIT_OK' /tmp/vita-cancel.log
 
   boot-chain-prototype:
     runs-on: ubuntu-latest
