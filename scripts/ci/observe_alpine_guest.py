@@ -3,6 +3,7 @@
 import argparse
 import os
 import re
+import shutil
 import socket
 import stat
 import subprocess
@@ -28,6 +29,21 @@ def observe(args):
             command += ["-boot", "order=d", "-cdrom", str(source)]
         else:
             command += ["-drive", f"file={source},format=raw,if=ide,snapshot=on"]
+        if args.firmware == "uefi":
+            code = next((path for path in (
+                "/usr/share/OVMF/OVMF_CODE_4M.fd", "/usr/share/OVMF/OVMF_CODE.fd"
+            ) if os.path.isfile(path)), None)
+            vars_template = next((path for path in (
+                "/usr/share/OVMF/OVMF_VARS_4M.fd", "/usr/share/OVMF/OVMF_VARS.fd"
+            ) if os.path.isfile(path)), None)
+            if not code or not vars_template:
+                raise RuntimeError("OVMF firmware files are missing")
+            vars_copy = os.path.join(temp, "OVMF_VARS.fd")
+            shutil.copyfile(vars_template, vars_copy)
+            command += [
+                "-drive", f"if=pflash,format=raw,unit=0,readonly=on,file={code}",
+                "-drive", f"if=pflash,format=raw,unit=1,file={vars_copy}",
+            ]
 
         serial_log = logs / f"{args.label}.serial.log"
         qemu_log = logs / f"{args.label}.qemu.log"
@@ -98,6 +114,7 @@ if __name__ == "__main__":
     inputs = parser.add_mutually_exclusive_group(required=True)
     inputs.add_argument("--iso")
     inputs.add_argument("--disk")
+    parser.add_argument("--firmware", choices=("bios", "uefi"), default="bios")
     parser.add_argument("--label", required=True)
     parser.add_argument("--log-dir", required=True)
     parser.add_argument("--timeout", type=int, default=150)
