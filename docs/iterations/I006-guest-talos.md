@@ -1,6 +1,7 @@
 # I006 — Real Linux guest boots the Vita/Talos Rust session
 
-Status: Active
+Status: Complete
+Completed: 2026-11-04
 Published baseline: 2026-11-04
 Selected work: VITA-001-C + VITA-001-D (both Active; I004/I005 foundation Complete)
 Risk: initramfs, kernel and guest process boot; disposable QEMU only; no physical disk writes.
@@ -30,10 +31,19 @@ This is not a distribution-grade Linux rootfs, mature init/reaper, automatic log
 
 ## Evidence
 
-Pending initial GitHub CI; maintain Complete/Partial classification only after inspecting exact guest output.
+**Verified** in [CI 41860037097](https://github.com/wjhuang88/vita/actions/runs/41860037097), source head `ec600f001d03ee154f3bc7c9f3f4269b9a9e1677`:
+
+- `governance`: success.
+- `guest-boot-to-talos`: success. Alpine virt 3.24.3 exact ISO SHA-256 and extracted Linux kernel SHA-256 matched pinned hashes.
+- Vita guest PID 1 and the actual Vita/Talos Runtime SDK host were both cross-compiled for `x86_64-unknown-linux-musl` and checked for absent ELF dynamic interpreters.
+- Real Linux guest serial artifact [13339188349](https://github.com/wjhuang88/vita/actions/runs/41860037097/artifacts/13339188349) contains `VITA_I006_GUEST_PID1_OK`, `VITA_I006_GUEST_PROC_READY`, the native Vita offline console banner, two distinct `[tool] system_summary`, two `[turn:ok]`, one `[turn:error]`, `VITA_CONSOLE_EXIT_OK` and `VITA_I006_GUEST_TALOS_SESSION_OK`.
+- The Python observer only emitted `VITA_I006_LINUX_TALOS_GUEST_OK turns=2 errors=1` after observing all required output **from the guest**, not a host-side simulation.
+- Existing I001 and I005 regression workflows also passed against the I006 branch. The first two failed BusyBox mount attempts remain documented under change control.
+
+**I006 host/VM experiment Complete.** The complete VITA-001-C and VITA-001-D Stories remain **Active**: no distributable Live ISO/rootfs, production model/config, mature init/recovery or verified TTY/physical-device support. Manual items remain **PENDING** in the I006 handoff checklist.
 
 ## I006 change control — guest mount initialization
 
 [Initial CI 41857471016](https://github.com/wjhuang88/vita/actions/runs/41857471016) and [diagnostic CI 41858640799](https://github.com/wjhuang88/vita/actions/runs/41858640799) both compiled Vita/Talos SDK for Linux/musl and booted Rust PID 1. The temporary static BusyBox `/proc` mount step then failed. The second run preserved complete serial error: `guest /proc mount failed or timed out`.
 
-This is an **implementation correction**, not a changed product target: replace the failed BusyBox subprocess with the safe Rust `nix` mount wrapper, hardcoded to guest `/proc` and restrictive flags. BusyBox is removed from the test initramfs and is not part of the delivered I006 runtime. Re-run the actual QEMU guest acceptance gate; the failure must remain recorded until it passes.
+This is an **implementation correction**, not a changed product target: replace the failed BusyBox subprocess with the safe Rust `nix` mount wrapper, hardcoded to guest `/proc` and restrictive flags. BusyBox is removed from the test initramfs and is not part of the delivered I006 runtime. The actual QEMU guest acceptance gate passed under the corrected native Rust mount, as recorded above.

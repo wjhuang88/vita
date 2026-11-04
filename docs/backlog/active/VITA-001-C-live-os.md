@@ -1,6 +1,6 @@
 # VITA-001-C — Operator can boot the project Live OS
 
-Status: Active (I006 — Linux guest to Talos SDK integration experiment)
+Status: Active (I006 Linux guest/Talos proof Complete; full Live OS remains open)
 
 
 As an operator,
@@ -41,9 +41,9 @@ The missing minimal-Linux-base decision is resolved for the first experiment by 
 - Unimplemented: complete rootfs/service manager, default Talos session, writable runtime/data, physical/UEFI firmware boot, independent offline recovery and distributable image.
 - Manual decisions/reviews: [I005 handoff](../../validation/I005-HUMAN-ACCEPTANCE.md). Separate Ventoy real ISO blocker remains [Issue #5](https://github.com/wjhuang88/vita/issues/5).
 
-## I006 guest Talos integration (in progress)
+## I006 guest Talos integration (verified QEMU slice)
 
 - A new minimal initramfs packages a statically compiled Vita Rust PID 1 and the actual existing Vita/Talos SDK console to demonstrate **Linux guest boots into Talos interaction**, not a shell/CLI.
-- Linux kernel and guest tools are protected by fixed SHA-256 and ELF checks. Serial input drives actual Tool turns in QEMU; CI evidence required before acceptance.
+- Linux kernel and guest tools are protected by fixed SHA-256 and ELF checks. Serial input drives actual Tool turns in QEMU; [CI 41860037097](https://github.com/wjhuang88/vita/actions/runs/41860037097) passed actual guest-side tool turns and recovery.
 - Full Alpine rootfs, reliable PID 1 service supervision, independent recovery, ISO/UEFI/Ventoy, persistence and physical device release are **not** included.
 - The human acceptance checklist is [I006](../../validation/I006-HUMAN-ACCEPTANCE.md). The third-party ISO compatibility problem remains Issue #5.

@@ -190,3 +190,5 @@ The [I006 guest session prototype](prototypes/guest-session-init/) joins the I00
 Run on a disposable Linux/CI host only: `bash scripts/ci/validate_i006_guest_session.sh`.
 
 This is an offline deterministic fixture, **not** a usable Live ISO, model-enabled release or USB installer. Open gates include full rootfs, stable init/recovery, bootable ISO/UEFI/Ventoy, human TTY and physical hardware checks. See [I006 acceptance handoff](docs/validation/I006-HUMAN-ACCEPTANCE.md).
+
+**I006 automated proof passed:** [CI 41860037097](https://github.com/wjhuang88/vita/actions/runs/41860037097) captured real Linux-guest Talos SDK tool turns over serial (including a handled error and clean exit). The complete Live OS and actual-model/session/recovery gates remain open.
