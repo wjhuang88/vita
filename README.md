@@ -181,3 +181,14 @@ Vita's Phase 1 boot plan uses **Ventoy**, whose own work is licensed **GPLv3+**,
 ## Next Live Linux milestone (I005, experimental)
 
 The [I005 direct Linux boot test](prototypes/live-init/) has **passed CI** with a verified Alpine kernel and a **static Rust init probe**; [run 41791034664](https://github.com/wjhuang88/vita/actions/runs/41791034664) captured the serial marker from real guest Linux PID 1. This is explicitly an engineering *kernel-to-Rust user-space* proof, **not** the final Vita Live ISO, a Talos session, or a physical-USB writer. See [ADR-0006](docs/decisions/ADR-0006-alpine-live-base.md) and the [human review checklist](docs/validation/I005-HUMAN-ACCEPTANCE.md). The separate Live rootfs and default Talos session remain to be built.
+
+
+## I006 Linux guest-to-Talos integration (engineering proof)
+
+The [I006 guest session prototype](prototypes/guest-session-init/) joins the I005 Linux boot and I004 Talos SDK console proofs. A temporary Rust PID 1 in an isolated initramfs launches the actual Vita-owned Talos Runtime host, and CI sends serial prompts to **the guest Linux process**, checking read-only `system_summary` turns and recovery.
+
+Run on a disposable Linux/CI host only: `bash scripts/ci/validate_i006_guest_session.sh`.
+
+This is an offline deterministic fixture, **not** a usable Live ISO, model-enabled release or USB installer. Open gates include full rootfs, stable init/recovery, bootable ISO/UEFI/Ventoy, human TTY and physical hardware checks. See [I006 acceptance handoff](docs/validation/I006-HUMAN-ACCEPTANCE.md).
+
+**I006 automated proof passed:** [CI 41860037097](https://github.com/wjhuang88/vita/actions/runs/41860037097) captured real Linux-guest Talos SDK tool turns over serial (including a handled error and clean exit). The complete Live OS and actual-model/session/recovery gates remain open.

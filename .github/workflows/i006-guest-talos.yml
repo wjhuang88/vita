@@ -1,0 +1,48 @@
+name: I006 Linux to Talos Guest
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/i006-guest-talos.yml"
+      - "scripts/ci/validate_i006_guest_session.sh"
+      - "scripts/ci/observe_i006_guest_session.py"
+      - "prototypes/guest-session-init/**"
+      - "prototypes/interaction-runtime/**"
+      - "crates/vita-system-facts/**"
+      - "docs/iterations/I006-guest-talos.md"
+      - "docs/backlog/active/VITA-001-C-live-os.md"
+      - "docs/backlog/active/VITA-001-D-talos-interaction-runtime.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate project governance
+        run: sh scripts/validate_project_governance.sh .
+
+  guest-boot-to-talos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check pinned Rust, Bash and Python syntax
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal
+          rustup component add --toolchain 1.99.0 rustfmt
+          cargo +1.99.0 fmt --manifest-path prototypes/guest-session-init/Cargo.toml --all -- --check
+          bash -n scripts/ci/validate_i006_guest_session.sh
+          python3 -m py_compile scripts/ci/observe_i006_guest_session.py
+      - name: Boot Linux guest and interact with actual Vita Talos SDK
+        run: bash scripts/ci/validate_i006_guest_session.sh
+      - name: Preserve guest serial and provenance on all outcomes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i006-guest-talos-serial
+          path: i006-guest-logs/
+          if-no-files-found: warn

@@ -133,3 +133,12 @@ bash scripts/ci/validate_i001_boot.sh
 ## I005：Linux 内核与 Rust 用户空间工程验证
 
 I005 已经通过 [QEMU 直接启动 Linux 内核并进入 Vita Rust 进程](prototypes/live-init/) 的最小验证路径（[CI 41791034664](https://github.com/wjhuang88/vita/actions/runs/41791034664)），使用校验过的 Alpine 内核和静态 Rust 程序。它**不是**完整 Live OS、Talos 默认交互环境或实体 U 盘安装器，也不代表 Ventoy 真实 ISO 兼容性问题已经解决。参见 [ADR-0006](docs/decisions/ADR-0006-alpine-live-base.md) 及 [I005 人工验收/评审清单](docs/validation/I005-HUMAN-ACCEPTANCE.md)。
+
+
+## I006：Linux 客体启动 Vita/Talos 交互进程
+
+[I006 Rust 客体启动项目](prototypes/guest-session-init/) 将此前 I005 的 Linux 内核引导验证与 I004 的 Talos SDK 控制台连接起来。测试在 QEMU 客体内由 Rust PID 1 直接启动 Vita 交互程序，通过串口输入 `inspect` 并观察结构化只读 Tool 结果及错误恢复。
+
+独立脚本：`bash scripts/ci/validate_i006_guest_session.sh`。本次仍是无网络、无模型密钥的**工程验证**，不是可发布的 Live ISO、实体 U 盘系统或完成的恢复方案。需要人工检查的安全、许可、TTY 与硬件事项统一记录在 [I006 人工验收清单](docs/validation/I006-HUMAN-ACCEPTANCE.md)。
+
+**I006 自动化验收已通过：** [CI 41860037097](https://github.com/wjhuang88/vita/actions/runs/41860037097) 在真实 Linux QEMU 客体内部完成了 Talos SDK 工具调用、错误恢复与正常退出。完整 Live OS、生产模型配置、TTY 体验和恢复系统仍未完成。

@@ -50,3 +50,17 @@ Related: [ADR-0004](ADR-0004-hybrid-ventoy-boot-substrate.md), [ADR-0005](ADR-00
 ## I005 verified experiment (2026-11-04)
 
 [CI 41791034664](https://github.com/wjhuang88/vita/actions/runs/41791034664) successfully booted the SHA-256-pinned Alpine virt kernel `17fbd3efd16f2e7cb1b945f06423b37399ba7d5ac8cdd3665e7f13f363500e85` with a disposable static Rust initramfs under QEMU. Linux serial reported Vita Rust PID 1. This confirms the direct kernel/user-space boundary only; the future Alpine userspace package and Live ISO contract still require testing and license review.
+
+## I006 extension — boot-only static BusyBox exception
+
+I006 retains the unchanged Alpine virt 3.24.3 kernel, and adds an **explicit one-off** packaged static BusyBox binary to run the fixed `mount -t proc proc /proc` boot operation (five-second bounded execution) inside a disposable QEMU initramfs. The Vita interaction process is still Rust-only, based on the supported Talos Runtime facade, and exposes only read-only system Tool semantics. BusyBox is not in the model's tool inventory.
+
+This temporary boot helper is an ADR-0005 exception, not an endorsement of model-driven shell pipelines or Rust PID 1 for the final distribution. The exact BusyBox package/version and SHA-256 are captured in CI logs, not yet pinned for redistribution. **License/source compliance and target-minimal-userspace selection require manual review** before publishing a Live ISO. Only the QEMU prototype is within the accepted I006 scope.
+
+## I006 change control — native Rust mount supersedes experimental BusyBox
+
+Initial I006 CI runs [41857471016](https://github.com/wjhuang88/vita/actions/runs/41857471016) and [41858640799](https://github.com/wjhuang88/vita/actions/runs/41858640799) both successfully compiled the actual Vita/Talos SDK for Linux/musl and booted guest Rust PID 1, but failed at the temporary static BusyBox `/proc` mount. The preceding BusyBox exception was only a **failed unmerged experiment**; it is superseded by a Vita-owned, fixed-path `/proc` mount using the maintained safe `nix` Rust API. The mount is guest-local with `nodev/noexec/nosuid`; **no BusyBox executable is packaged** in the corrected I006 initramfs. This is still a privileged guest boot operation and cannot be exposed as an Agent tool. CI must validate the revised guest behavior before I006 is Complete.
+
+## I006 verified Linux guest to Talos proof (2026-11-04)
+
+[CI 41860037097](https://github.com/wjhuang88/vita/actions/runs/41860037097) passed the corrected native Rust procfs mount and actual Talos SDK host execution inside an Alpine-kernel Linux guest. The serial artifact confirms Linux PID 1, `/proc`, two successful structured read-only Tool turns with an intervening handled provider error, and clean host termination. The initramfs contains no BusyBox. This is an engineering **direct-kernel QEMU proof only**; it does not establish a mature Alpine rootfs, production init, recovery, bootable ISO, UEFI/Ventoy compatibility, release/SBOM compliance or actual hardware support.

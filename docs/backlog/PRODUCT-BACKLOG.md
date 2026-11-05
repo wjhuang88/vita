@@ -12,8 +12,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | VITA-001 | P0 | Epic | Agent-native portable USB OS | Product foundation; I001 architecture gates proven | Architecture + ADR-0001 + ADR-0004 | Active |
 | VITA-001-B | P0 | Story | Discover and boot ISO images | I002 partial; real Alpine ISO Ventoy handoff blocked (#5) | Issue #5 + PR #4 | Blocked |
-| VITA-001-C | P0 | Story | Boot a directly usable Live OS | ADR-0006 selects Alpine/musl; I005 direct QEMU kernel-to-Rust proof; full Live still open | ADR-0006 + I005 | Active |
-| VITA-001-D | P0 | Story | Talos Core becomes the primary interactive session | I004: host-side SDK console fixture; Live/TTY and recovery still pending | I003 + I004 | Active |
+| VITA-001-C | P0 | Story | Boot a directly usable Live OS | I006 Linux guest -> embedded Talos SDK console verified in QEMU; full rootfs, ISO and recovery remain open | ADR-0006 + I006 | Active |
+| VITA-001-D | P0 | Story | Talos Core becomes the primary interactive session | I006 Linux guest Talos SDK offline session verified; production provider, TTY and recovery remain open | I004 + I006 | Active |
 | VITA-001-E | P0 | Story | Load model and Agent configuration from the USB | Security boundary | Config contract + threat model | Refinement |
 | VITA-001-F | P0 | Story | Execute system operations through a governed capability broker | ADR-0002 | Privileged operations SOP | Refinement |
 | VITA-001-G | P1 | Story | Provide explicit compatibility/recovery shell | ADR-0001 | Talos integration reference | Refinement |
