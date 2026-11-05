@@ -146,3 +146,5 @@ I005 已经通过 [QEMU 直接启动 Linux 内核并进入 Vita Rust 进程](pro
 ## I007：易失运行环境与显式离线恢复验证
 
 在 QEMU 客体中增加只读 sysfs、有限大小的易失 /run 和 /tmp；默认继续启动 Rust/Talos SDK。只有内核启动参数 vita.recovery=1 才进入本地、离线、未经身份认证的 **root 恢复 Shell**，模型本身无法调用它。它只是无磁盘、无网络的开发验证，不代表实体 U 盘的恢复认证、只读根文件系统或可发布 Live ISO 已完成。人工安全与许可审核见 [I007 清单](docs/validation/I007-HUMAN-ACCEPTANCE.md)。
+
+**I007 虚拟机双模式自动验收通过：** [CI 41970334220](https://github.com/wjhuang88/vita/actions/runs/41970334220) 已分别验证默认 Talos 交互和显式离线 root 恢复；Alpine 静态 BusyBox 安装包及可执行文件均锁定 SHA-256，且默认构建关闭 root 恢复特性。真实终端仍有作业控制告警，恢复认证、许可证、物理 U 盘与完整 Live ISO 仍待人工和后续工程验收。

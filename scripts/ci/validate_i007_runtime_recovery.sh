@@ -25,7 +25,8 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
 
 # Ubuntu's BusyBox static binary SIGILLs on QEMU's x86_64 baseline CPU.
 # Instead use a target-architecture Alpine v3.24 static package. Keep a
-# manifest digest and pin it after the exploratory no-network QEMU proof.
+# exact APK and ELF hashes pinned from successful QEMU evidence and
+# enforced before inserting the recovery shell into the disposable initramfs.
 RECOVERY_APK="busybox-static-1.37.0-r31.apk"
 RECOVERY_APK_SHA256="b0d6cfc585d7fdd12df359cc5d38d5e45894e9e9e78c4059eb41577d022ec734"
 RECOVERY_BIN_SHA256="1690ed6db71fa35621537580135deb8de4f55f30a50d9d591050256e334cd8b9"

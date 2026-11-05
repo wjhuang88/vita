@@ -38,3 +38,7 @@ Related: ADR-0001/0002/0005/0006; docs/validation/I007-HUMAN-ACCEPTANCE.md.
 ## I007 CPU compatibility correction (2026-11-05)
 
 The first QEMU default/Talos boot succeeded, but recovery execution from Ubuntu's static BusyBox package raised guest SIGILL on QEMU's baseline x86_64 CPU ([CI 41968628065](https://github.com/wjhuang88/vita/actions/runs/41968628065)). For portable recovery, do **not** mask the incompatibility with a higher CPU model. I007 instead selects the Alpine v3.24 x86_64 static BusyBox APK matching the Alpine kernel line. Record and enforce the exact APK digest before merge; retain the unchanged QEMU baseline instruction set. Source/license and hardware compatibility review remains separate.
+
+## I007 validated VM boundary (2026-11-05)
+
+[Final hash-pinned CI 41970334220](https://github.com/wjhuang88/vita/actions/runs/41970334220) confirms two separate Linux QEMU guest boots on the unchanged baseline CPU: native Vita/Talos structured read-only interaction by default, and an explicit feature-gated `vita.recovery=1` path that executed and exited a local root BusyBox shell. The Alpine static BusyBox APK SHA-256 is `b0d6cfc585d7fdd12df359cc5d38d5e45894e9e9e78c4059eb41577d022ec734`, and the extracted ELF SHA-256 is `1690ed6db71fa35621537580135deb8de4f55f30a50d9d591050256e334cd8b9`; both fail closed if changed. **Human approval remains required** for source redistribution, boot authentication, trusted recovery policy and terminal/job-control UX. Serial `sh: can't access tty; job control turned off` is a recorded limitation.

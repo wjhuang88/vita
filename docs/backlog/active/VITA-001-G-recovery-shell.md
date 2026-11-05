@@ -14,6 +14,6 @@ Acceptance:
 
 Dependencies: VITA-001-C, VITA-001-D.
 
-## I007 recovery precursor
+## I007 verified experimental recovery precursor
 
-One exact kernel argument vita.recovery=1 selects an offline local root BusyBox shell in a diskless, networkless QEMU guest; the default remains the Talos SDK session. The kernel-argument parsing fails closed on invalid or repeated values. No normal model interaction can launch this fallback. Production boot-menu selection, physical root-shell authentication, mature init and actual offline repair workflow remain unimplemented. See ADR-0007 and docs/validation/I007-HUMAN-ACCEPTANCE.md. Do not close Story G from I007.
+One exact kernel argument vita.recovery=1 selects an offline local root BusyBox shell in a diskless, networkless QEMU guest; the default remains the Talos SDK session. The kernel-argument parsing fails closed on invalid or repeated values. No normal model interaction can launch this fallback. [CI 41970334220](https://github.com/wjhuang88/vita/actions/runs/41970334220) confirms this VM-only path and a real executed command. An explicit Cargo experimental-root-recovery build feature is disabled in normal builds. Production boot-menu selection, physical root-shell authentication, mature init, reliable job control and actual offline repair workflow remain unimplemented. See ADR-0007 and docs/validation/I007-HUMAN-ACCEPTANCE.md. Do not close Story G from I007.
