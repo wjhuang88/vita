@@ -52,9 +52,16 @@ fn serial_line(line: &str) {
     }
 }
 
-fn mount_fs(source: &str, target: &str, kind: &str, flags: MsFlags, options: Option<&str>) -> io::Result<()> {
-    mount(Some(source), target, Some(kind), flags, options)
-        .map_err(|error| io::Error::other(format!("guest {kind} mount at {target} failed: {error}")))
+fn mount_fs(
+    source: &str,
+    target: &str,
+    kind: &str,
+    flags: MsFlags,
+    options: Option<&str>,
+) -> io::Result<()> {
+    mount(Some(source), target, Some(kind), flags, options).map_err(|error| {
+        io::Error::other(format!("guest {kind} mount at {target} failed: {error}"))
+    })
 }
 
 fn mount_runtime() -> io::Result<()> {
@@ -79,7 +86,13 @@ fn mount_runtime() -> io::Result<()> {
         mount_flags() | MsFlags::MS_NOEXEC | MsFlags::MS_RDONLY,
         None,
     )?;
-    mount_fs("tmpfs", "/run", "tmpfs", mount_flags(), Some("mode=0755,size=16m"))?;
+    mount_fs(
+        "tmpfs",
+        "/run",
+        "tmpfs",
+        mount_flags(),
+        Some("mode=0755,size=16m"),
+    )?;
     mount_fs(
         "tmpfs",
         "/tmp",
@@ -117,11 +130,7 @@ fn serial_stdio() -> io::Result<(Stdio, Stdio, Stdio)> {
     let input = File::open("/dev/ttyS0")?;
     let output = OpenOptions::new().write(true).open("/dev/ttyS0")?;
     let error = output.try_clone()?;
-    Ok((
-        Stdio::from(input),
-        Stdio::from(output),
-        Stdio::from(error),
-    ))
+    Ok((Stdio::from(input), Stdio::from(output), Stdio::from(error)))
 }
 
 fn run_talos() -> io::Result<()> {
@@ -165,7 +174,9 @@ fn run_recovery() -> io::Result<()> {
         .stderr(stderr)
         .status()?;
     if !status.success() {
-        return Err(io::Error::other(format!("offline recovery shell exited: {status}")));
+        return Err(io::Error::other(format!(
+            "offline recovery shell exited: {status}"
+        )));
     }
     serial_line("VITA_I007_RECOVERY_EXIT_OK");
     Ok(())
