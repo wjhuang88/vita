@@ -142,3 +142,7 @@ I005 已经通过 [QEMU 直接启动 Linux 内核并进入 Vita Rust 进程](pro
 独立脚本：`bash scripts/ci/validate_i006_guest_session.sh`。本次仍是无网络、无模型密钥的**工程验证**，不是可发布的 Live ISO、实体 U 盘系统或完成的恢复方案。需要人工检查的安全、许可、TTY 与硬件事项统一记录在 [I006 人工验收清单](docs/validation/I006-HUMAN-ACCEPTANCE.md)。
 
 **I006 自动化验收已通过：** [CI 41860037097](https://github.com/wjhuang88/vita/actions/runs/41860037097) 在真实 Linux QEMU 客体内部完成了 Talos SDK 工具调用、错误恢复与正常退出。完整 Live OS、生产模型配置、TTY 体验和恢复系统仍未完成。
+
+## I007：易失运行环境与显式离线恢复验证
+
+在 QEMU 客体中增加只读 sysfs、有限大小的易失 /run 和 /tmp；默认继续启动 Rust/Talos SDK。只有内核启动参数 vita.recovery=1 才进入本地、离线、未经身份认证的 **root 恢复 Shell**，模型本身无法调用它。它只是无磁盘、无网络的开发验证，不代表实体 U 盘的恢复认证、只读根文件系统或可发布 Live ISO 已完成。人工安全与许可审核见 [I007 清单](docs/validation/I007-HUMAN-ACCEPTANCE.md)。
