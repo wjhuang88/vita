@@ -27,14 +27,20 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
 # Instead use a target-architecture Alpine v3.24 static package. Keep a
 # manifest digest and pin it after the exploratory no-network QEMU proof.
 RECOVERY_APK="busybox-static-1.37.0-r31.apk"
+RECOVERY_APK_SHA256="b0d6cfc585d7fdd12df359cc5d38d5e45894e9e9e78c4059eb41577d022ec734"
+RECOVERY_BIN_SHA256="1690ed6db71fa35621537580135deb8de4f55f30a50d9d591050256e334cd8b9"
 RECOVERY_URL="https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/$RECOVERY_APK"
 curl --fail --location --retry 3 --silent --show-error \
   "$RECOVERY_URL" -o "$WORK_DIR/$RECOVERY_APK"
+echo "$RECOVERY_APK_SHA256  $WORK_DIR/$RECOVERY_APK" | sha256sum --check --status \
+  || fail "Alpine recovery APK SHA-256 mismatch"
 sha256sum "$WORK_DIR/$RECOVERY_APK" >"$LOG_DIR/recovery-package.sha256"
 RECOVERY="$WORK_DIR/busybox.static"
 bsdtar -xOf "$WORK_DIR/$RECOVERY_APK" bin/busybox.static >"$RECOVERY" \
   || fail "Alpine static BusyBox package extraction failed"
 [[ -s "$RECOVERY" ]] || fail "Alpine static BusyBox binary missing"
+echo "$RECOVERY_BIN_SHA256  $RECOVERY" | sha256sum --check --status \
+  || fail "Alpine BusyBox executable SHA-256 mismatch"
 chmod 0755 "$RECOVERY"
 if readelf -l "$RECOVERY" | grep -q 'INTERP'; then
   fail "Alpine BusyBox recovery shell must be statically linked"
