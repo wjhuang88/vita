@@ -12,6 +12,7 @@ use std::time::Duration;
 use nix::mount::{MsFlags, mount};
 
 const SESSION_BINARY: &str = "/vita/vita-interaction-prototype";
+#[cfg(feature = "experimental-root-recovery")]
 const RECOVERY_BINARY: &str = "/bin/busybox";
 fn mount_flags() -> MsFlags {
     MsFlags::MS_NOSUID | MsFlags::MS_NODEV
@@ -153,6 +154,7 @@ fn run_talos() -> io::Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "experimental-root-recovery")]
 fn run_recovery() -> io::Result<()> {
     if !nix::unistd::geteuid().is_root() {
         return Err(io::Error::other("guest recovery shell must be local root"));
@@ -182,6 +184,18 @@ fn run_recovery() -> io::Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "experimental-root-recovery")]
+fn dispatch_recovery() -> io::Result<()> {
+    run_recovery()
+}
+
+#[cfg(not(feature = "experimental-root-recovery"))]
+fn dispatch_recovery() -> io::Result<()> {
+    Err(io::Error::other(
+        "offline root recovery was not compiled into this guest image",
+    ))
+}
+
 fn boot() -> io::Result<()> {
     if std::process::id() != 1 {
         return Err(io::Error::other("guest init must be Linux PID 1"));
@@ -192,7 +206,7 @@ fn boot() -> io::Result<()> {
     let cmdline = fs::read_to_string("/proc/cmdline")?;
     match select_mode(&cmdline)? {
         GuestMode::Talos => run_talos(),
-        GuestMode::Recovery => run_recovery(),
+        GuestMode::Recovery => dispatch_recovery(),
     }
 }
 
@@ -225,6 +239,16 @@ mod tests {
             select_mode("console=ttyS0 xvita.recovery=1").unwrap(),
             GuestMode::Talos
         );
+    }
+
+    #[cfg(not(feature = "experimental-root-recovery"))]
+    #[test]
+    fn default_binary_rejects_recovery_even_when_kernel_option_is_set() {
+        assert_eq!(
+            select_mode("vita.recovery=1").unwrap(),
+            GuestMode::Recovery
+        );
+        assert!(dispatch_recovery().is_err());
     }
 
     #[test]

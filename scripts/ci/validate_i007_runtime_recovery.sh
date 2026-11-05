@@ -46,7 +46,8 @@ rustup toolchain install 1.99.0 --profile minimal
 rustup target add --toolchain 1.99.0 x86_64-unknown-linux-musl
 export CC_x86_64_unknown_linux_musl=musl-gcc
 cargo +1.99.0 build --manifest-path "$ROOT_DIR/prototypes/guest-session-init/Cargo.toml" \
-  --release --target x86_64-unknown-linux-musl
+  --release --target x86_64-unknown-linux-musl \
+  --features experimental-root-recovery
 cargo +1.99.0 build --manifest-path "$ROOT_DIR/prototypes/interaction-runtime/Cargo.toml" \
   --release --target x86_64-unknown-linux-musl
 
