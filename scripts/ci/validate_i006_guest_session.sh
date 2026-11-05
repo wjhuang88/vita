@@ -52,8 +52,8 @@ for binary in "$INIT" "$TALOS"; do
 done
 
 echo "[I006] Build isolated initramfs (no physical target or guest drive)"
-mkdir -p "$WORK_DIR/root/dev" "$WORK_DIR/root/proc" "$WORK_DIR/root/tmp" \
-  "$WORK_DIR/root/vita" "$WORK_DIR/root/etc"
+mkdir -p "$WORK_DIR/root/dev" "$WORK_DIR/root/proc" "$WORK_DIR/root/sys" \
+  "$WORK_DIR/root/run" "$WORK_DIR/root/tmp" "$WORK_DIR/root/vita" "$WORK_DIR/root/etc"
 cp "$INIT" "$WORK_DIR/root/init"
 cp "$TALOS" "$WORK_DIR/root/vita/vita-interaction-prototype"
 chmod 0755 "$WORK_DIR/root/init" "$WORK_DIR/root/vita/vita-interaction-prototype"
