@@ -11,24 +11,36 @@ ISO_URL="https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/$ISO_NAME"
 ISO_SHA256="cdc1bc0efc64d8d611bf3733f54868172a545888dfd726f518bf279bcb0ff1af"
 KERNEL_SHA256="17fbd3efd16f2e7cb1b945f06423b37399ba7d5ac8cdd3665e7f13f363500e85"
 
-fail() { echo "VITA_I006_ERROR: $*" >&2; exit 1; }
+fail() { echo "VITA_I007_ERROR: $*" >&2; exit 1; }
 cleanup() { rm -rf "$WORK_DIR"; }
 trap cleanup EXIT
 [[ "$(uname -m)" == "x86_64" ]] || fail "x86_64 Linux host only"
 mkdir -p "$LOG_DIR"
 
-echo "[I006] Install host-only QEMU and static Rust build tools"
+echo "[I007] Install host-only QEMU and build tools"
 sudo apt-get update -qq
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-  qemu-system-x86 xorriso cpio gzip binutils musl-tools busybox-static \
+  qemu-system-x86 xorriso cpio gzip binutils musl-tools libarchive-tools \
   curl cmake clang pkg-config build-essential >/dev/null
-RECOVERY="$(command -v busybox)"
-[[ -x "$RECOVERY" ]] || fail "static recovery BusyBox missing"
+
+# Ubuntu's BusyBox static binary SIGILLs on QEMU's x86_64 baseline CPU.
+# Instead use a target-architecture Alpine v3.24 static package. Keep a
+# manifest digest and pin it after the exploratory no-network QEMU proof.
+RECOVERY_APK="busybox-static-1.37.0-r31.apk"
+RECOVERY_URL="https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/$RECOVERY_APK"
+curl --fail --location --retry 3 --silent --show-error \
+  "$RECOVERY_URL" -o "$WORK_DIR/$RECOVERY_APK"
+sha256sum "$WORK_DIR/$RECOVERY_APK" >"$LOG_DIR/recovery-package.sha256"
+RECOVERY="$WORK_DIR/busybox.static"
+bsdtar -xOf "$WORK_DIR/$RECOVERY_APK" bin/busybox.static >"$RECOVERY" \
+  || fail "Alpine static BusyBox package extraction failed"
+[[ -s "$RECOVERY" ]] || fail "Alpine static BusyBox binary missing"
+chmod 0755 "$RECOVERY"
 if readelf -l "$RECOVERY" | grep -q 'INTERP'; then
-  fail "recovery BusyBox must have no dynamic interpreter"
+  fail "Alpine BusyBox recovery shell must be statically linked"
 fi
-"$RECOVERY" --list | grep -qx sh || fail "static BusyBox sh applet unavailable"
-dpkg-query -W busybox-static >"$LOG_DIR/recovery-package.txt"
+"$RECOVERY" --list | grep -qx sh || fail "Alpine BusyBox sh applet missing"
+"$RECOVERY" --list | grep -qx id || fail "Alpine BusyBox id applet missing"
 sha256sum "$RECOVERY" >"$LOG_DIR/recovery-binary.sha256"
 echo "[I007] Verify Alpine virt 3.24.3 ISO and exact I005 kernel"
 curl --fail --location --retry 3 --silent --show-error "$ISO_URL" -o "$WORK_DIR/$ISO_NAME"
