@@ -34,3 +34,7 @@ Two distinct QEMU boots must demonstrate actual guest Talos Tool turns vs execut
 Reconsider this approach if the threat model, source licensing, production init design or bootloader policy requires authenticated or privilege-reduced recovery. The mature init/rootfs, product ISO and Ventoy handoff are not selected by this ADR.
 
 Related: ADR-0001/0002/0005/0006; docs/validation/I007-HUMAN-ACCEPTANCE.md.
+
+## I007 CPU compatibility correction (2026-11-05)
+
+The first QEMU default/Talos boot succeeded, but recovery execution from Ubuntu's static BusyBox package raised guest SIGILL on QEMU's baseline x86_64 CPU ([CI 41968628065](https://github.com/wjhuang88/vita/actions/runs/41968628065)). For portable recovery, do **not** mask the incompatibility with a higher CPU model. I007 instead selects the Alpine v3.24 x86_64 static BusyBox APK matching the Alpine kernel line. Record and enforce the exact APK digest before merge; retain the unchanged QEMU baseline instruction set. Source/license and hardware compatibility review remains separate.

@@ -13,7 +13,7 @@ This list is for a separate guided acceptance chat and must remain unchecked aft
 
 ## HUMAN-002 — licensing and provenance
 
-- [ ] HUMAN REQUIRED — Review upstream Alpine kernel and static BusyBox license/source distribution, exact package version and SHA-256, reproducible build and SBOM requirements. CI package logging is not production approval.
+- [ ] HUMAN REQUIRED — Review SHA-pinned Alpine kernel and Alpine v3.24 BusyBox-static APK (1.37.0-r31), exact package + extracted binary SHA-256, source and GPL redistribution obligations. Also account for the earlier Ubuntu BusyBox SIGILL under QEMU's default x86_64 CPU; do not claim real hardware portability without CPU-matrix evidence. CI package logging is not production approval.
 - [ ] HUMAN REQUIRED — Assess Rust/musl/nix/Talos license/source inventory for eventual distribution.
 
 ## HUMAN-003 — product integration and real hardware

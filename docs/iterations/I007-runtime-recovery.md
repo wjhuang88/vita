@@ -37,3 +37,15 @@ Pending CI. Human security, legal, terminal and device validation all remain PEN
 [Initial CI 41968027990](https://github.com/wjhuang88/vita/actions/runs/41968027990) verified real Linux/Talos guest multi-turn behavior, but the original I006 serial observer terminated QEMU immediately after the I006 success marker, racing the following I007 clean-exit marker. The I007 gate **was not weakened**: the observer now accepts an optional final-marker argument and waits until that marker is genuinely received before stopping QEMU. Existing I006 calls remain unchanged.
 
 Before any release, the risk of an unauthenticated root shell deserves an additional default-deny build boundary: I007 explicitly enables the experimental-root-recovery Cargo feature in its **diskless VM-only** build. Default builds reject recovery even if the kernel argument is provided. This supplements, not replaces, the required human/firmware authorization review.
+
+## I007 change control — shell CPU baseline and package provenance
+
+[CI 41968628065](https://github.com/wjhuang88/vita/actions/runs/41968628065) passed the default Linux/Talos guest and the new post-session marker, but **failed recovery**: Ubuntu 26.04 busybox-static 1.37.0 exited with SIGILL under the QEMU default x86_64 CPU model. The [failed guest serial artifact](https://github.com/wjhuang88/vita/actions/runs/41968628065/artifacts/13388896385) is preserved; the kernel and native mounts were working.
+
+Do not weaken the CPU-baseline target by silently switching to QEMU -cpu max. Instead use Alpine **v3.24/main/x86_64/busybox-static-1.37.0-r31.apk** from the distro matching the pinned kernel. Extract only its static /bin/busybox.static, log source package and executable SHA-256 and test with the unchanged generic QEMU CPU. The APK download is initially an exploratory build input: **a fixed expected SHA-256 for the APK must be added before declaring I007 Complete/merge-ready**. No real host or guest disks are exposed by this experiment.
+
+Earlier CI 41968027990 failed solely because I006's serial observer returned before the adjacent I007 final marker; that race was corrected by a backward-compatible optional final-marker gate.
+
+### Source/license gate
+
+BusyBox is GPL-2.0-only; the eventual Live ISO must satisfy source-redistribution obligations. The pinned download alone is not legal approval; HUMAN-002 stays unchecked.
