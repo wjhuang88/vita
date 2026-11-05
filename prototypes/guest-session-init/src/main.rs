@@ -244,10 +244,7 @@ mod tests {
     #[cfg(not(feature = "experimental-root-recovery"))]
     #[test]
     fn default_binary_rejects_recovery_even_when_kernel_option_is_set() {
-        assert_eq!(
-            select_mode("vita.recovery=1").unwrap(),
-            GuestMode::Recovery
-        );
+        assert_eq!(select_mode("vita.recovery=1").unwrap(), GuestMode::Recovery);
         assert!(dispatch_recovery().is_err());
     }
 
