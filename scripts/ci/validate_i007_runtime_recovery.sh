@@ -83,7 +83,8 @@ echo "[I006] QEMU Linux guest receives actual Talos prompts on serial"
 python3 "$ROOT_DIR/scripts/ci/observe_i006_guest_session.py" \
   --kernel "$WORK_DIR/vmlinuz-virt" \
   --initrd "$WORK_DIR/vita-guest-initramfs.cpio.gz" \
-  --log-dir "$LOG_DIR/default" --timeout 140
+  --log-dir "$LOG_DIR/default" --timeout 140 \
+  --final-marker VITA_I007_DEFAULT_TALOS_EXIT_OK
 
 grep -Fq "VITA_I007_RUNTIME_MOUNTS_READY" "$LOG_DIR/default/guest-serial.log" \
   || fail "guest runtime mount validation absent"

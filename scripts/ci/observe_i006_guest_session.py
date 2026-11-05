@@ -24,7 +24,7 @@ def require_regular(path: str) -> str:
     return str(target)
 
 
-def observe(kernel: str, initrd: str, log_dir: str, timeout: int) -> None:
+def observe(kernel: str, initrd: str, log_dir: str, timeout: int, final_marker: str | None = None) -> None:
     kernel_path = require_regular(kernel)
     initrd_path = require_regular(initrd)
     logs = Path(log_dir).resolve()
@@ -94,6 +94,11 @@ def observe(kernel: str, initrd: str, log_dir: str, timeout: int) -> None:
                         client.sendall(b":quit\n")
                         step = 4
                     elif step == 4 and "VITA_I006_GUEST_TALOS_SESSION_OK" in output:
+                        # An optional follow-up boot milestone must be observed
+                        # *before* QEMU is terminated; this avoids the race
+                        # between the I006 and I007 adjacent guest markers.
+                        if final_marker is not None and final_marker not in output:
+                            continue
                         expected = [
                             "VITA_I006_GUEST_PID1_OK",
                             "VITA_I006_GUEST_PROC_READY",
@@ -126,9 +131,10 @@ def main() -> int:
     parser.add_argument("--initrd", required=True)
     parser.add_argument("--log-dir", required=True)
     parser.add_argument("--timeout", type=int, default=140)
+    parser.add_argument("--final-marker", default=None)
     args = parser.parse_args()
     try:
-        observe(args.kernel, args.initrd, args.log_dir, args.timeout)
+        observe(args.kernel, args.initrd, args.log_dir, args.timeout, args.final_marker)
         return 0
     except Exception as error:
         print(f"VITA_I006_GUEST_ERROR: {error}", file=sys.stderr, flush=True)
