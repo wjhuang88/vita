@@ -1,0 +1,47 @@
+name: I007 Volatile Runtime and Offline Recovery
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/i007-runtime-recovery.yml"
+      - "prototypes/guest-session-init/**"
+      - "prototypes/interaction-runtime/**"
+      - "scripts/ci/validate_i007_runtime_recovery.sh"
+      - "scripts/ci/observe_i007_recovery.py"
+      - "scripts/ci/observe_i006_guest_session.py"
+      - "docs/iterations/I007-runtime-recovery.md"
+      - "docs/backlog/active/VITA-001-C-live-os.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate project governance
+        run: sh scripts/validate_project_governance.sh .
+
+  linux-default-and-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Rust, Bash and Python syntax
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal
+          rustup component add --toolchain 1.99.0 rustfmt
+          cargo +1.99.0 fmt --manifest-path prototypes/guest-session-init/Cargo.toml --all -- --check
+          bash -n scripts/ci/validate_i007_runtime_recovery.sh
+          python3 -m py_compile scripts/ci/observe_i007_recovery.py
+      - name: Boot guest default session and explicit offline root rescue
+        run: bash scripts/ci/validate_i007_runtime_recovery.sh
+      - name: Retain serial and provenance artifacts even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i007-guest-recovery-evidence
+          path: i007-guest-logs/
+          if-no-files-found: warn
