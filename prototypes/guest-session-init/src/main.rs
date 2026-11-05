@@ -13,7 +13,9 @@ use nix::mount::{MsFlags, mount};
 
 const SESSION_BINARY: &str = "/vita/vita-interaction-prototype";
 const RECOVERY_BINARY: &str = "/bin/busybox";
-const MOUNT_FLAGS: MsFlags = MsFlags::MS_NOSUID.union(MsFlags::MS_NODEV);
+fn mount_flags() -> MsFlags {
+    MsFlags::MS_NOSUID | MsFlags::MS_NODEV
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum GuestMode {
@@ -62,7 +64,7 @@ fn mount_runtime() -> io::Result<()> {
         "proc",
         "/proc",
         "proc",
-        MOUNT_FLAGS | MsFlags::MS_NOEXEC,
+        mount_flags() | MsFlags::MS_NOEXEC,
         None,
     )?;
     if fs::read_to_string("/proc/uptime")?.trim().is_empty() {
@@ -74,15 +76,15 @@ fn mount_runtime() -> io::Result<()> {
         "sysfs",
         "/sys",
         "sysfs",
-        MOUNT_FLAGS | MsFlags::MS_NOEXEC | MsFlags::MS_RDONLY,
+        mount_flags() | MsFlags::MS_NOEXEC | MsFlags::MS_RDONLY,
         None,
     )?;
-    mount_fs("tmpfs", "/run", "tmpfs", MOUNT_FLAGS, Some("mode=0755,size=16m"))?;
+    mount_fs("tmpfs", "/run", "tmpfs", mount_flags(), Some("mode=0755,size=16m"))?;
     mount_fs(
         "tmpfs",
         "/tmp",
         "tmpfs",
-        MOUNT_FLAGS | MsFlags::MS_NOEXEC,
+        mount_flags() | MsFlags::MS_NOEXEC,
         Some("mode=1777,size=16m"),
     )?;
     fs::create_dir_all("/run/vita")?;
@@ -199,18 +201,18 @@ mod tests {
 
     #[test]
     fn only_explicit_kernel_argument_can_enable_recovery() {
-        assert_eq!(select_mode("console=ttyS0"), Ok(GuestMode::Talos));
+        assert_eq!(select_mode("console=ttyS0").unwrap(), GuestMode::Talos);
         assert_eq!(
-            select_mode("console=ttyS0 vita.recovery=0"),
-            Ok(GuestMode::Talos)
+            select_mode("console=ttyS0 vita.recovery=0").unwrap(),
+            GuestMode::Talos
         );
         assert_eq!(
-            select_mode("console=ttyS0 vita.recovery=1"),
-            Ok(GuestMode::Recovery)
+            select_mode("console=ttyS0 vita.recovery=1").unwrap(),
+            GuestMode::Recovery
         );
         assert_eq!(
-            select_mode("console=ttyS0 xvita.recovery=1"),
-            Ok(GuestMode::Talos)
+            select_mode("console=ttyS0 xvita.recovery=1").unwrap(),
+            GuestMode::Talos
         );
     }
 
