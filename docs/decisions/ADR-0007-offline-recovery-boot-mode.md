@@ -15,7 +15,7 @@ Date: 2026-11-05
 
 The experimental guest Rust PID 1 mounts /proc, readonly /sys and separate bounded volatile tmpfs /run and /tmp, and verifies the Linux mount table before entering any interactive session. The initramfs root itself is still writable/ephemeral; there is no claim of an immutable read-only OS base.
 
-Default is the native Vita/Talos SDK host. Only one exact token, vita.recovery=1, selects a local static BusyBox root shell with serial stdin/stdout/stderr, sanitized environment and no model or network requirement. Duplicate/invalid boot settings fail closed. A failed Talos start must not silently hand root to the model or the operator; an explicit reboot/recovery choice is necessary.
+Default is the native Vita/Talos SDK host. Only if the experimental-root-recovery Cargo feature is explicitly built into the VM fixture may one exact token, vita.recovery=1, select a local static BusyBox root shell with serial stdin/stdout/stderr, sanitized environment and no model or network requirement. Duplicate/invalid boot settings fail closed. A failed Talos start must not silently hand root to the model or the operator; an explicit reboot/recovery choice is necessary.
 
 BusyBox is packaged solely for the deliberate recovery branch, **not** invoked to mount /proc (the failed I006 BusyBox boot-mount experiment remains superseded by the native Rust nix mount). There is no model-accessible shell tool or guest disk/USB device in QEMU.
 

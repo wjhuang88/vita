@@ -6,7 +6,7 @@ This list is for a separate guided acceptance chat and must remain unchecked aft
 ## HUMAN-001 — privilege and recovery security
 
 - [ ] HUMAN REQUIRED — Evaluate the physical-access and authentication consequences of kernel argument vita.recovery=1 enabling an **unauthenticated root shell**. Review boot-menu lock, local attacker and Secure Boot policies before any hardware distribution.
-- [ ] HUMAN REQUIRED — Audit the exact token parser: malformed/duplicate values fail closed; no model prompt, tool output, environment variable or Talos failure can silently enter recovery.
+- [ ] HUMAN REQUIRED — Audit the compile-time experimental-root-recovery feature gate (off by default) AND the exact token parser: malformed/duplicate values fail closed; no model prompt, tool output, environment variable or Talos failure can silently enter recovery.
 - [ ] HUMAN REQUIRED — Review that recovery environment is cleared of API credentials and that the QEMU test exposes no guest network, physical media or host disk.
 - [ ] HUMAN REQUIRED — Inspect restricted /proc, readonly /sys, bounded tmpfs /run and /tmp. This is NOT an immutable read-only rootfs.
 - [ ] HUMAN REQUIRED — Design non-root Talos interactive session privilege and governed broker isolation before shipping.

@@ -12,7 +12,7 @@ Start the *same* SHA-verified Alpine-kernel Linux guest in two separate QEMU mod
 1. Default: initialize /proc, readonly /sys and bounded volatile /run and /tmp; verify the real Linux mount table; launch the native Vita/Talos Rust SDK host and drive the established I006 read-only multi-turn Tool test.
 2. Explicit recovery: kernel argument vita.recovery=1, and **only** that token, selects a separate local root BusyBox sh shell. Drive an actual shell command through the guest serial port, confirm guest uid=0 and observed command output, then exit. Talos must not start.
 
-Both use the same disposable initramfs built with static musl Rust binaries and a distro static BusyBox reserved for *recovery only*, not model tools or boot mount helper. Recovery inherits no model secrets (env_clear) and has no network/disk target. Duplicate, malformed or unknown recovery parameters must fail closed.
+Both use the same disposable initramfs built with static musl Rust binaries and a distro static BusyBox reserved for *recovery only*, not model tools or boot mount helper. The Cargo feature experimental-root-recovery MUST be explicitly enabled for this VM fixture; ordinary builds leave the root-shell dispatch disabled. Recovery inherits no model secrets (env_clear) and has no network/disk target. Duplicate, malformed or unknown recovery parameters must fail closed.
 
 ## Automatic acceptance
 
@@ -31,3 +31,9 @@ This is an isolated engineering proof, **not** full Alpine rootfs, immutable rea
 ## Evidence
 
 Pending CI. Human security, legal, terminal and device validation all remain PENDING in docs/validation/I007-HUMAN-ACCEPTANCE.md.
+
+## I007 acceptance harness change control — final-marker race and compile gate
+
+[Initial CI 41968027990](https://github.com/wjhuang88/vita/actions/runs/41968027990) verified real Linux/Talos guest multi-turn behavior, but the original I006 serial observer terminated QEMU immediately after the I006 success marker, racing the following I007 clean-exit marker. The I007 gate **was not weakened**: the observer now accepts an optional final-marker argument and waits until that marker is genuinely received before stopping QEMU. Existing I006 calls remain unchanged.
+
+Before any release, the risk of an unauthenticated root shell deserves an additional default-deny build boundary: I007 explicitly enables the experimental-root-recovery Cargo feature in its **diskless VM-only** build. Default builds reject recovery even if the kernel argument is provided. This supplements, not replaces, the required human/firmware authorization review.
