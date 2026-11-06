@@ -148,3 +148,7 @@ I005 已经通过 [QEMU 直接启动 Linux 内核并进入 Vita Rust 进程](pro
 在 QEMU 客体中增加只读 sysfs、有限大小的易失 /run 和 /tmp；默认继续启动 Rust/Talos SDK。只有内核启动参数 vita.recovery=1 才进入本地、离线、未经身份认证的 **root 恢复 Shell**，模型本身无法调用它。它只是无磁盘、无网络的开发验证，不代表实体 U 盘的恢复认证、只读根文件系统或可发布 Live ISO 已完成。人工安全与许可审核见 [I007 清单](docs/validation/I007-HUMAN-ACCEPTANCE.md)。
 
 **I007 虚拟机双模式自动验收通过：** [CI 41970334220](https://github.com/wjhuang88/vita/actions/runs/41970334220) 已分别验证默认 Talos 交互和显式离线 root 恢复；Alpine 静态 BusyBox 安装包及可执行文件均锁定 SHA-256，且默认构建关闭 root 恢复特性。真实终端仍有作业控制告警，恢复认证、许可证、物理 U 盘与完整 Live ISO 仍待人工和后续工程验收。
+
+## I008：Vita 自有 ISO 工程验证（进行中）
+
+本迭代将已锁定哈希的 Linux 内核、Rust PID 1 和 Talos SDK 交互程序封装为 **Vita 自有 GRUB ISO 工程镜像**，验收必须分别经 QEMU BIOS/OVMF UEFI，从真实 ISO 而非 `-kernel` 直启进入 Linux 客体并完成 Talos Tool 会话。这不代表可发布的 Live OS、只读根文件系统、认证恢复、物理 U 盘安装或 Ventoy 兼容性。为避免未经审核的 root 恢复能力进入产品镜像，本阶段不打包实验性恢复 Shell。CI 结果待验证，详见 [I008 迭代](docs/iterations/I008-live-iso-boot.md)与[人工验收](docs/validation/I008-HUMAN-ACCEPTANCE.md)。

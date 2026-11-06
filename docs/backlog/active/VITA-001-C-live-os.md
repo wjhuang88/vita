@@ -1,6 +1,6 @@
 # VITA-001-C — Operator can boot the project Live OS
 
-Status: Active (I007 minimal runtime mounts and explicit offline recovery VM slice)
+Status: Active (I008 Vita-owned GRUB ISO firmware gate in progress)
 
 
 As an operator,
@@ -51,3 +51,7 @@ The missing minimal-Linux-base decision is resolved for the first experiment by 
 ## I007 volatile mounts and explicit offline recovery (VM proof verified)
 
 The experimental guest Rust PID 1 now mounts /proc, readonly sysfs, bounded volatile /run and /tmp and validates the actual Linux mount table. Default launch remains the direct Rust/Talos SDK console; an exact vita.recovery=1 kernel option selects a separate offline **local root shell** (not a model Tool) with cleared inherited environment. Both independent QEMU boots have passed in [CI 41970334220](https://github.com/wjhuang88/vita/actions/runs/41970334220), with fixed SHA-256 digests for the Alpine recovery APK and executable. The root shell requires an explicitly compiled experimental-root-recovery feature (disabled by default) as well as the boot token. This is not a full rootfs, secure product boot/recovery selector or physical-media release. See I007 iteration and docs/validation/I007-HUMAN-ACCEPTANCE.md; Story remains Active.
+
+## I008 project-owned GRUB ISO (implementation Active)
+
+Produce a hashed engineering ISO packaging the existing pinned Linux kernel and Rust/Talos SDK guest. Prove actual ISO-mediated BIOS and OVMF UEFI boot to the read-only multi-turn Talos session, not just a menu marker or QEMU direct kernel boot. This slice excludes the experimental root-shell recovery, full rootfs, production configuration and real/third-party Ventoy boot. Acceptance and human review live in [I008](../../iterations/I008-live-iso-boot.md); full Story C stays Active until product-level requirements are met.
