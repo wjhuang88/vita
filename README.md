@@ -192,3 +192,9 @@ Run on a disposable Linux/CI host only: `bash scripts/ci/validate_i006_guest_ses
 This is an offline deterministic fixture, **not** a usable Live ISO, model-enabled release or USB installer. Open gates include full rootfs, stable init/recovery, bootable ISO/UEFI/Ventoy, human TTY and physical hardware checks. See [I006 acceptance handoff](docs/validation/I006-HUMAN-ACCEPTANCE.md).
 
 **I006 automated proof passed:** [CI 41860037097](https://github.com/wjhuang88/vita/actions/runs/41860037097) captured real Linux-guest Talos SDK tool turns over serial (including a handled error and clean exit). The complete Live OS and actual-model/session/recovery gates remain open.
+
+## I007 VM-only offline recovery experiment
+
+I007 adds controlled proc/sysfs, volatile run/tmp mounts and explicit kernel option vita.recovery=1 for a **local unauthenticated root rescue shell**. The default still runs the embedded Vita/Talos SDK host; the model cannot choose recovery. The dual QEMU tests run without guest network or block devices. This is a development fixture only: not a secured physical-USB recovery menu, immutable root filesystem or released Live ISO. See [I007 iteration](docs/iterations/I007-runtime-recovery.md) and [human safety acceptance](docs/validation/I007-HUMAN-ACCEPTANCE.md).
+
+**I007 VM-only automated gate passed:** [CI 41970334220](https://github.com/wjhuang88/vita/actions/runs/41970334220) verified both default Talos and separately kernel-selected offline recovery, with checksummed Alpine static BusyBox and no QEMU disk or network. Recovery is build-feature-gated, disabled by default. A real terminal controlling-TTY/job-control warning and unauthenticated root-shell policy are **open manual/security tasks**, not release claims.
