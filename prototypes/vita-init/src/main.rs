@@ -237,8 +237,9 @@ fn boot_pid1() -> io::Result<()> {
         return Err(io::Error::other("Vita init must run as Linux root PID 1"));
     }
     serial("VITA_I006_GUEST_PID1_OK");
-    let flags = parse_boot_options(&fs::read_to_string("/proc/cmdline").unwrap_or_default())?;
+    // /proc must be mounted before reading the kernel command line.
     mount_runtime()?;
+    let flags = parse_boot_options(&fs::read_to_string("/proc/cmdline")?)?;
     configure_fixture_tty()?;
     serial("VITA_I009_PID1_MINIMAL_INIT_READY");
 
