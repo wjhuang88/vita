@@ -48,3 +48,7 @@ A CLI launched from bash leaves bash as the primary environment and tends to inh
 
 ## Boot boundary
 VITA-001-A completed its Phase 1 boot decision and deterministic BIOS/UEFI VM proof. The selected approach is a pinned, unmodified Ventoy compatibility substrate with Vita-owned Live OS and runtime above it (ADR-0004). The proof used boot-stub ISO images, not a finished Live Linux OS or a real distribution compatibility matrix; physical firmware and Secure Boot remain open gates.
+
+## Authoritative product direction (2026-11-07)
+
+See [Vita OS design contract](VITA-OS-DESIGN.md) and [ADR-0008](../decisions/ADR-0008-linux-init-service-supervision.md). Vita is small but fully capable Linux; Rust init is a candidate **not yet selected**; PID 1, privileged Broker and the native unprivileged Talos session are independent lifecycles. Borrow ChromeOS's separation and immutable image principles, not its browser/Upstart/firmware stack. I008 is an ISO/QEMU proof, not a finished rootfs or product release.
