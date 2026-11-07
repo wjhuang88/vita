@@ -156,3 +156,5 @@ I005 已经通过 [QEMU 直接启动 Linux 内核并进入 Vita Rust 进程](pro
 ## Vita OS 已确定设计基线（2026-11-07）
 
 Vita 的目标是**小而美、能力完整、Rust-first、智能体原生交互的 Linux 系统**，不是传统 Linux 发行版加 AI CLI。正式的[系统设计契约](docs/reference/VITA-OS-DESIGN.md)及[ADR-0008](docs/decisions/ADR-0008-linux-init-service-supervision.md)明确：极简 Linux 底座、只读系统与独立数据、PID 1/会话/Broker 生命周期隔离，优先使用 Rust 原生系统能力；借鉴 ChromeOS 的分层与故障恢复，不复制浏览器和其专属固件。**是否自研 Rust PID 1 尚待 I009a 与 Dinit/Finit 实测，不是已确定的技术选型。** I008 已在全部九项精确提交检查通过后通过 [PR #11](https://github.com/wjhuang88/vita/pull/11) 合并；目前仍未完成产品 rootfs、控制 TTY、正式恢复与实体 U 盘验收。
+
+**I009a Rust Init 候选验证：** [首次 CI 42373604370](https://github.com/wjhuang88/vita/actions/runs/42373604370) 已验证 BIOS/UEFI 真实 ISO 启动到非 root、拥有控制终端的 Talos，会回收孤儿子进程，连续 3 次崩溃后停止重启且不开放 root Shell。最终提交的 CI 仍待复验；目前只是 VM 工程候选，不代表产品 init 或完整 Linux 根文件系统已完成。详见 [I009a 证据](docs/iterations/I009a-init-lifecycle.md)。
