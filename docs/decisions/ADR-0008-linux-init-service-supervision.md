@@ -79,6 +79,41 @@ A **minimal Linux** means an intentionally small shipped base with **complete ex
 - Rust network link/address/route APIs: https://docs.rs/rtnetlink/latest/rtnetlink/
 - Dinit/Finit earlier comparison and licensing remains in historical sections below.
 
+## ChromeOS / ChromiumOS architectural reference — adopted principles, not imported stack (2026-11-07)
+
+**Why this is relevant:** ChromeOS is a mature example of a *product Linux* where a dedicated primary UI (Chrome), distinct session management, scoped privileged background services and a constrained OS image coexist. Vita replaces the browser-centric product interaction with **the embedded native Rust/Talos Agent session**; it must keep normal Linux execution capability without burdening the image with a large desktop/distro management stack.
+
+| ChromiumOS precedent | Vita principle | I009 / later validation |
+| --- | --- | --- |
+| Dedicated browser UI, separate `session_manager` and service control | Dedicated Vita/Talos UI, independent lifecycle supervision and local TTY/session ownership | I009: boot-to-non-root real TTY, child reaping, respawn without root access |
+| Primarily read-only OS root, writable state kept separate | Minimal **read-only versioned rootfs** (e.g. squashfs) plus disposable tmpfs and a separately mounted, explicitly identified optional encrypted USB data volume | I009: rootfs mount proof + writable-path inventory; never silently write host/internal disks |
+| Active/inactive system copy, boot-success marker and automatic rollback | **Versioned system image** + boot-health acknowledgement, bounded attempts and previous-version fallback; A/B may be *logical versioned ISO/image slots*, not ChromeOS hardware GPT scheme | Follow-on storage/update design, after Vita-owned ISO/actual Ventoy path gates; never edit third-party Ventoy engine to emulate hardware firmware |
+| Privileged OS services over defined D-Bus IPC, sandboxed with minijail | Typed Rust providers, minimal privileged broker, strict allowlists, authenticated IPC; use Linux capabilities, seccomp and namespaces as mechanisms, not direct unrestricted root shell | I009: read-only system inspection + one gated non-destructive service action; sandbox profile reviewed |
+| Recovery works independently of primary app and without remote service | Boot-selected, **offline, authenticated recovery environment** independently available when Talos/model fails | Security/human gate; I007 unauthenticated VM root shell stays disabled in shipped image |
+| Hardware-controlled verified boot chain | Signature/measurement and rootfs integrity are *aspirations*, not a claim of ChromeOS-like trusted firmware | For arbitrary borrowed PCs and removable USB, firmware trust/secure-boot key ownership is outside Vita's control; separately define signature, tamper and physical-access threat model |
+
+### What not to copy
+
+1. **Do not adopt the Chrome browser, ChromeOS Upstart jobs or `session_manager` binaries.** Official ChromiumOS docs describe Upstart and a managed browser session. Adopt the **separation of concerns**, not the outdated service technology or UI.
+2. **Do not import ChromeOS board-specific partitioning, firmware or hardware-verified boot.** Vita boots on heterogeneous PCs using an unmodified Ventoy-compatible substrate plus its own ISO; this cannot guarantee control of host firmware, TPM or Secure Boot policy. ISO version rollback must respect the selected boot media and open Issue #5.
+3. **Do not duplicate all system packages or require multiple permanent root partitions just to claim A/B.** Measure the space impact. An initial immutable squashfs ISO + one optional data area + old ISO fallback may be more portable; exact rollback reliability is unproven until bootloader/failed-boot tests pass.
+4. **Do not conflate Agent extensibility with immutable OS violation.** Skills, user config, logs and knowledge belong in a distinct, optionally encrypted and validated data domain. Trusted OS binaries live in the versioned base, extensions are explicitly managed by policy.
+5. **Do not blindly embed Minijail for arbitrary untrusted Agent-generated code.** Its own documentation targets sandboxing *known binaries*, not reliably executing hostile unknown code. Isolation must be evaluated per threat and capability; root Broker must deny unsafe operations by contract.
+
+### Practical I009 architectural hypothesis
+
+Prefer `Alpine/musl kernel/modules + minimal read-only rootfs + Rust native Vita OS Core + independent minimal PID 1 + Vita/Talos primary session`; evaluate a small Rust PID 1 against Dinit/Finit under the same immutable-image fixture. Start without permanent persistence or a second boot slot. Prove the system API and safety boundary first. Record image bytes, RAM, startup times and device support instead of prematurely specifying numeric targets.
+
+### Upstream documentation (architectural source, not proof of Vita implementation)
+
+- ChromiumOS software architecture / browser + system IPC: https://www.chromium.org/chromium-os/chromiumos-design-docs/software-architecture/
+- Chrome OS session manager and UI job: https://chromium.googlesource.com/chromiumos/platform2/+/HEAD/login_manager/README.md
+- ChromiumOS read-only root and A/B writable state: https://www.chromium.org/chromium-os/chromiumos-design-docs/filesystem-autoupdate/
+- update_engine / A/B rollback semantics: https://chromium.googlesource.com/chromiumos/platform2/+/HEAD/update_engine/
+- ChromeOS sandboxing services via Minijail: https://www.chromium.org/chromium-os/developer-library/guides/development/sandboxing/
+- Minijail actual threat model (known binaries): https://github.com/google/minijail
+- ChromiumOS verified boot chain and hardware caveats: https://www.chromium.org/chromium-os/chromiumos-design-docs/verified-boot/
+
 ## Earlier product-goal correction (historical, further refined above)
 
 **Hard product intent:** Vita is a functionally complete Linux OS (drivers, networking, storage, users/sessions, packages, services, security, recoverability) with **native Agent-first interaction** as the primary way humans operate it. The differentiator is *intent-to-governed-system-capability*, not the smallest possible PID 1 or an agent CLI running in a terminal. The earlier Alpine BusyBox+OpenRC recommendation was based on a narrower minimum-Linux-appliance assumption and is now a **historical low-overhead baseline, not the selected product architecture**. I005-I008 remain valid experimental proofs; do not change their previously accepted scope or claim a distro migration has happened.
