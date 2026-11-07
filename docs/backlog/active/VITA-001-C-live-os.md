@@ -61,3 +61,7 @@ Source head `11ba5b08` passed [I008 CI 42180463023](https://github.com/wjhuang88
 ## Accepted architecture and next slice (2026-11-07)
 
 [ADR-0008](../../decisions/ADR-0008-linux-init-service-supervision.md) and the [Vita OS design contract](../../reference/VITA-OS-DESIGN.md) establish a **small yet functionally complete**, Rust-first Agent-native Linux product. PID 1, non-root Talos session and privileged Broker are separate failure/trust domains. Alpine/musl remains the experimental base; **Rust PID 1 vs Dinit/Finit remains an open comparative decision**; do not declare Debian/systemd a default. ChromeOS is a layering and immutable-system reference only. [I009a](../../iterations/I009a-init-lifecycle.md) is the next bounded VM-only slice. I008 was merged in [PR #11](https://github.com/wjhuang88/vita/pull/11) after all nine exact-head checks passed. This does not close Story C or human/security/physical/Ventoy gates.
+
+## I009a code implementation — review-in-progress
+
+Separate minimal Rust PID 1 candidate with non-root session/controlling TTY, bounded crash budget, orphan reaping, and real ISO firmware guest tests is proposed by the I009a PR. **No successful I009a guest proof is claimed until exact-head CI completes.** The decision between Rust PID 1 and Dinit/Finit stays OPEN, and full rootfs/recovery/physical gates remain unchanged.
