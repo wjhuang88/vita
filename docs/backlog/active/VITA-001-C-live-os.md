@@ -1,6 +1,6 @@
 # VITA-001-C — Operator can boot the project Live OS
 
-Status: Active (I008 BIOS+UEFI engineering ISO proof verified; complete Live OS open)
+Status: Active (I008 ISO firmware proof merged; I009a minimal init/session lifecycle selected; full Live OS remains open)
 
 
 As an operator,
@@ -57,3 +57,7 @@ The experimental guest Rust PID 1 now mounts /proc, readonly sysfs, bounded vola
 Produce a hashed engineering ISO packaging the existing pinned Linux kernel and Rust/Talos SDK guest. Prove actual ISO-mediated BIOS and OVMF UEFI boot to the read-only multi-turn Talos session, not just a menu marker or QEMU direct kernel boot. This slice excludes the experimental root-shell recovery, full rootfs, production configuration and real/third-party Ventoy boot. Acceptance and human review live in [I008](../../iterations/I008-live-iso-boot.md); full Story C stays Active until product-level requirements are met.
 
 Source head `11ba5b08` passed [I008 CI 42180463023](https://github.com/wjhuang88/vita/actions/runs/42180463023), with BIOS and OVMF UEFI both booting the generated ISO into actual Linux/Talos Tool turns. I005, I006 and I007 original-head regressions passed. Expanded exact-head I001 boot-substrate regression is pending before PR merge. This does not close VITA-001-C; the product rootfs, secure offline recovery, config and real-device integration are still open.
+
+## Accepted architecture and next slice (2026-11-07)
+
+[ADR-0008](../../decisions/ADR-0008-linux-init-service-supervision.md) and the [Vita OS design contract](../../reference/VITA-OS-DESIGN.md) establish a **small yet functionally complete**, Rust-first Agent-native Linux product. PID 1, non-root Talos session and privileged Broker are separate failure/trust domains. Alpine/musl remains the experimental base; **Rust PID 1 vs Dinit/Finit remains an open comparative decision**; do not declare Debian/systemd a default. ChromeOS is a layering and immutable-system reference only. [I009a](../../iterations/I009a-init-lifecycle.md) is the next bounded VM-only slice. I008 was merged in [PR #11](https://github.com/wjhuang88/vita/pull/11) after all nine exact-head checks passed. This does not close Story C or human/security/physical/Ventoy gates.

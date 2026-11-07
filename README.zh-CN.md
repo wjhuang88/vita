@@ -152,3 +152,7 @@ I005 已经通过 [QEMU 直接启动 Linux 内核并进入 Vita Rust 进程](pro
 ## I008：Vita 自有 ISO 工程验证（BIOS/UEFI 虚拟机已通过）
 
 本迭代将已锁定哈希的 Linux 内核、Rust PID 1 和 Talos SDK 交互程序封装为 **Vita 自有 GRUB ISO 工程镜像**，验收必须分别经 QEMU BIOS/OVMF UEFI，从真实 ISO 而非 `-kernel` 直启进入 Linux 客体并完成 Talos Tool 会话。这不代表可发布的 Live OS、只读根文件系统、认证恢复、物理 U 盘安装或 Ventoy 兼容性。为避免未经审核的 root 恢复能力进入产品镜像，本阶段不打包实验性恢复 Shell。[I008 CI 42180463023](https://github.com/wjhuang88/vita/actions/runs/42180463023) 已分别验证 BIOS 与 OVMF UEFI 从 ISO 进入真实 Linux/Talos Tool 会话，I001 原引导底座的最终回归正在补齐。详见 [I008 迭代](docs/iterations/I008-live-iso-boot.md)与[人工验收](docs/validation/I008-HUMAN-ACCEPTANCE.md)。
+
+## Vita OS 已确定设计基线（2026-11-07）
+
+Vita 的目标是**小而美、能力完整、Rust-first、智能体原生交互的 Linux 系统**，不是传统 Linux 发行版加 AI CLI。正式的[系统设计契约](docs/reference/VITA-OS-DESIGN.md)及[ADR-0008](docs/decisions/ADR-0008-linux-init-service-supervision.md)明确：极简 Linux 底座、只读系统与独立数据、PID 1/会话/Broker 生命周期隔离，优先使用 Rust 原生系统能力；借鉴 ChromeOS 的分层与故障恢复，不复制浏览器和其专属固件。**是否自研 Rust PID 1 尚待 I009a 与 Dinit/Finit 实测，不是已确定的技术选型。** I008 已在全部九项精确提交检查通过后通过 [PR #11](https://github.com/wjhuang88/vita/pull/11) 合并；目前仍未完成产品 rootfs、控制 TTY、正式恢复与实体 U 盘验收。
