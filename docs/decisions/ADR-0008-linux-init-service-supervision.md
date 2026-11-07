@@ -1,9 +1,15 @@
 # ADR-0008 — Vita Linux init and service supervision selection
 
-Status: **Proposed, selected engineering baseline for I009; not verified for release**
+Status: **Proposed — selection REOPENED on 2026-11-07 after product-goal clarification; no final init/distro decision or release approval**
 Date: 2026-11-07
 Story: VITA-001-C; follow-up [I009 Issue #12](https://github.com/wjhuang88/vita/issues/12).
 Dependencies: ADR-0001, ADR-0002, ADR-0005, ADR-0006, ADR-0007; first firmware ISO proof I008 PR #11.
+
+## Product-goal correction (2026-11-07; decision change)
+
+**Hard product intent:** Vita is a functionally complete Linux OS (drivers, networking, storage, users/sessions, packages, services, security, recoverability) with **native Agent-first interaction** as the primary way humans operate it. The differentiator is *intent-to-governed-system-capability*, not the smallest possible PID 1 or an agent CLI running in a terminal. The earlier Alpine BusyBox+OpenRC recommendation was based on a narrower minimum-Linux-appliance assumption and is now a **historical low-overhead baseline, not the selected product architecture**. I005-I008 remain valid experimental proofs; do not change their previously accepted scope or claim a distro migration has happened.
+
+The full-agent-operation target affects ADR-0006's **soft** Alpine base choice. That ADR remains the factual record for the I005/I008 experiments but **does not constrain the final base to musl/Alpine**. Before implementation of a new product foundation, test glibc/systemd alternatives in disposable VM/ISO, compare named outcomes, and record a subsequent accepted ADR. Change class: *decision reopened and comparative scope increased*; existing iteration/CI baseline remains intact.
 
 ## Context
 
@@ -31,7 +37,7 @@ Soft: Alpine/musl package/ecosystem reuse, small/observable boot, minimal runtim
 
 This matrix is a qualitative architecture assessment. **No measured candidate-size, speed or memory benchmark exists yet**; do not present one as fact.
 
-## Decision (I009 target)
+## Previous proposed decision (I009 target — reopened; NOT final)
 
 **Select Alpine Linux BusyBox `/sbin/init` as permanent PID 1 plus OpenRC as the service/runlevel manager.** Use OpenRC `supervise-daemon` only for **noninteractive** foreground services, initially a dummy privileged-broker service; configure crash limits, start/stop ordering and health checks.
 
@@ -92,3 +98,77 @@ Run a bounded Dinit challenger PoC only if the selected stack shows measured una
 - s6-linux-init / s6-rc (ISC): https://www.skarnet.org/software/s6-linux-init/ and https://www.skarnet.org/software/s6-rc/
 - runit: https://smarden.org/runit/
 - systemd: https://freedesktop.org/software/systemd/man/latest/init.html
+
+
+## Change-control addendum: Agent-first full Linux selection (2026-11-07)
+
+The user clarified that **intelligent ease of use and complete Linux functionality** outrank a minimal image footprint. Therefore the previous Alpine/OpenRC-first decision is **on hold** pending system-platform comparative evidence. I009 Issue #12 is re-scoped to evaluate the operating system base **and** the machine interfaces exposed to the Agent; it is not a commitment to replace Rust PID 1 with BusyBox init.
+
+### Revised evaluation dimensions, in priority order
+
+1. **System API completeness and stability:** service/process lifecycle, resources, network, device discovery, storage/filesystems, users/sessions, logs, software/updates, recovery; can Rust call typed APIs without shell-output scraping?
+2. **Safe autonomy:** least privilege, polkit/IPC authorization, per-operation target identity and confirmation, observable progress and audit, bounded execution, rollback/compensation where possible. Never let arbitrary model-produced methods/parameters reach system D-Bus as root.
+3. **Full general-purpose Linux viability:** compatible drivers, kernel modules, POSIX applications, package management, remote/local network, consoles and future graphical session; no required conventional desktop, but no deliberate loss of Linux functionality.
+4. **Bootable removable Live OS:** read-only/ephemeral root, optional persistence, x86_64 BIOS and UEFI QEMU proof, secure/offline recovery and portable-media compatibility tested independently; no silent physical writes.
+5. **Maintenance and delivery:** stable distro support, immutable/reproducible build, patching, image/lifecycle and source-license review.
+6. **Footprint/boot speed:** measure but treat as optimization rather than first-order decision.
+
+### Platform candidates, not merely init binaries
+
+| Candidate product foundation | Agent-native leverage | Key costs/unknowns | Stage |
+| --- | --- | --- | --- |
+| **Debian stable (13/trixie) + systemd + glibc + custom Live ISO** | Mature PID1/unit DBus, cgroups, journald, udev/logind; strong integration with NetworkManager, UDisks2, polkit and native Rust D-Bus; broad software/driver support; Debian live-build path | Larger footprint, rebuild of Alpine/musl rootfs assumptions, live persistence/upgrade contract remains work | **Provisional primary PoC** |
+| **NixOS + systemd** | Same Linux API layer plus declarative system configuration, generations and rollback for high-risk Agent-applied system changes | Nix store/build/update semantics and Live USB portability add substantial project complexity; still requires policy and safe target selection | **Strategic challenger** |
+| **Alpine + BusyBox init + OpenRC** | Known light Alpine/musl stack; I005-I008 kernel prototype reused; typed APIs possible from independent services | OpenRC core largely shell-based service scripts and lacks systemd manager's rich common native D-Bus API; integration burden shifts to Vita | **Lightweight control baseline** |
+| **Chimera/Dinit or Alpine with Dinit** | Dependency and supervision control socket and small service model | Fewer ready-made standardized general-Linux management API integrations; distro and session/udev integration need proof | **Conditional challenger** |
+| **Finit / OpenWrt procd** | Embedded appliance functionality; Finit integrates service+getty, procd offers event/service ubus | Tailored to appliance/router assumptions; less obvious broad general-Linux stack and platform API ecosystem | **Specialized alternatives** |
+
+**Provisional recommendation:** systemd appears better for Vita's **complete OS capability surface** than an init-only minimalism contest; **Debian stable + systemd + native Rust Broker** is the lead engineering experiment, not a final migration decision. NixOS may win if versioned system-state transactions/rollbacks are a primary product need and its resource/delivery cost is acceptable. Neither is proven in Vita yet.
+
+### What the Agent should actually control
+
+```text
+User (local TTY / future graphical interface)
+  -> Vita native Rust/Talos Runtime (unprivileged primary UI)
+     -> Intent -> typed capability request -> plan/dry-run/target binding
+        -> Vita policy + confirmation + audit (never model-provided root commands)
+           -> narrowly privileged Vita system broker
+              -> systemd1 D-Bus: units, transient bounded jobs, scoped resources
+              -> NetworkManager D-Bus: devices, links, profiles
+              -> UDisks2 D-Bus: storage discovery / controlled mount
+              -> logind D-Bus: seats, sessions, sleep/power
+              -> journald API: structured diagnostics
+              -> udev native monitor: devices / stable identity
+              -> package/update adapter (distro-specific, separate authorization)
+           -> progress + exact changes + structured results + appropriate rollback
+Linux kernel + mature system services supply real functionality below.
+```
+
+- Vita does **not** need to implement networking, logind, init, disk scanning or package management from scratch, nor replace all system functions with command wrappers.
+- Native Rust D-Bus via `zbus` is a candidate mechanism; final interfaces and crate versions must be pinned, policy-validated and tested. systemd is a service manager and system API **substrate**, not Vita's Agent policy or conversational UI.
+- Only operations with a supported rollback contract can claim rollback; power off, disk format, firmware and physical-device writes are **not** generally reversible. Confirmation and target verification remain mandatory.
+- Run the primary Vita/Talos session non-root, with a real controlling TTY in early VM proofs. A graphical Agent UI is a later independent human-interface layer; using systemd/logind never mandates GNOME/KDE or launching Talos inside bash.
+- Use controlled noninteractive service health/activation to keep the broker responsive independently of Talos/model availability; offline recovery remains separate and human authorized.
+
+### Revised I009 comparative acceptance
+
+1. Produce disposable pinned **Debian-systemd** Live ISO and **Alpine-OpenRC** rootfs/ISO control baseline; optionally test **NixOS-systemd** separately when system-state rollback is demonstrably beneficial. Do not mix direct QEMU kernel proofs with ISO-backed proof claims.
+2. Boot each qualifying candidate in BIOS and OVMF UEFI QEMU into the same **native** Talos session on an unprivileged controlling TTY, with actual read-only Tool calls.
+3. Demonstrate typed read-only introspection of **service state, device identity, network interfaces and structured logs**, capturing API contracts and implementation dependencies.
+4. Demonstrate one allowlisted, reversible service restart with broker authorization, before/after observability, failure injection and audit; prohibit arbitrary unit names, root shells and unconfirmed disk/network mutations.
+5. Measure rootfs/ISO bytes, cold boot time, idle RAM, integration effort and package/firmware coverage on identical guest hardware and reproducible pinned inputs.
+6. Test systemd service crash/restart, child reaping, session recovery, no-network/local-mode operation, and offline rescue isolation. Preserve I001-I008 and separate Ventoy Issue #5.
+7. If proposing systemd final base, explicitly supersede the **future-base** clause of ADR-0006 with evidence; keep Alpine I005-I008 provenance intact. No release without package/GPL license inventory and real-device/manual gates.
+
+### Primary upstream basis
+
+- systemd manager typed D-Bus, units and jobs: https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.systemd1.html
+- systemd login/session D-Bus: https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html
+- systemd journal structured API: https://freedesktop.org/software/systemd/man/latest/sd-journal.html
+- systemd resource control and sandboxing: https://freedesktop.org/software/systemd/man/latest/systemd.exec.html
+- Native Rust zbus: https://z-galaxy.github.io/zbus/
+- NetworkManager stable D-Bus: https://www.networkmanager.dev/docs/developers/
+- UDisks2 D-Bus/polkit: https://wiki.freedesktop.org/www/Software/udisks/
+- Debian live-build and image tooling: https://wiki.debian.org/SystemBuildTools
+- Debian 13 stable support: https://www.debian.org/releases/
+- NixOS generations and rollback: https://nixos.org/manual/nixos/stable/
