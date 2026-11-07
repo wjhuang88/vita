@@ -40,3 +40,13 @@ jobs:
           name: i008-bios-uefi-guest-evidence
           path: i008-iso-logs/
           if-no-files-found: warn
+
+  i001-boot-substrate-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify I001 boot harness syntax
+        run: bash -n scripts/ci/validate_i001_boot.sh
+      - name: Validate original Ventoy probe handoff on disposable loop-backed image
+        run: bash scripts/ci/validate_i001_boot.sh
