@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import socket
 import stat
 import subprocess
@@ -24,9 +25,24 @@ def require_regular(path: str) -> str:
     return str(target)
 
 
-def observe(kernel: str, initrd: str, log_dir: str, timeout: int, final_marker: str | None = None) -> None:
-    kernel_path = require_regular(kernel)
-    initrd_path = require_regular(initrd)
+def observe(
+    kernel: str | None, initrd: str | None, log_dir: str, timeout: int,
+    final_marker: str | None = None, iso: str | None = None, firmware: str = "bios",
+) -> None:
+    # I006: direct-kernel path remains intact. I008: genuine ISO boot.
+    if iso is None:
+        if kernel is None or initrd is None:
+            raise ValueError("direct boot needs kernel and initrd")
+        kernel_path = require_regular(kernel)
+        initrd_path = require_regular(initrd)
+        iso_path = None
+    else:
+        if kernel is not None or initrd is not None:
+            raise ValueError("ISO path must not also supply direct kernel/initrd")
+        iso_path = require_regular(iso)
+        kernel_path = initrd_path = None
+    if firmware == "uefi" and iso_path is None:
+        raise ValueError("UEFI firmware requires ISO boot")
     logs = Path(log_dir).resolve()
     logs.mkdir(parents=True, exist_ok=True)
     serial_log = logs / "guest-serial.log"
@@ -34,13 +50,32 @@ def observe(kernel: str, initrd: str, log_dir: str, timeout: int, final_marker: 
     with tempfile.TemporaryDirectory(prefix="vita-i006-serial-") as temp:
         socket_path = os.path.join(temp, "serial.sock")
         command = [
-            "qemu-system-x86_64", "-machine", "accel=tcg",
-            "-m", "1024", "-smp", "2", "-nic", "none",
-            "-kernel", kernel_path, "-initrd", initrd_path,
-            "-append", "console=ttyS0 rdinit=/init panic=-1 loglevel=5",
-            "-display", "none", "-monitor", "none", "-no-reboot",
+            "qemu-system-x86_64", "-machine", "accel=tcg", "-m", "1024",
+            "-smp", "2", "-nic", "none", "-display", "none",
+            "-monitor", "none", "-no-reboot",
             "-serial", f"unix:{socket_path},server=on,wait=off",
         ]
+        if iso_path is not None:
+            command.extend(["-cdrom", iso_path, "-boot", "order=d"])
+            if firmware == "uefi":
+                codes = ["/usr/share/OVMF/OVMF_CODE_4M.fd", "/usr/share/OVMF/OVMF_CODE.fd"]
+                variables = ["/usr/share/OVMF/OVMF_VARS_4M.fd", "/usr/share/OVMF/OVMF_VARS.fd"]
+                code = next((p for p in codes if Path(p).is_file()), None)
+                vars_source = next((p for p in variables if Path(p).is_file()), None)
+                if not code or not vars_source:
+                    raise FileNotFoundError("OVMF firmware images not found")
+                vars_copy = os.path.join(temp, "OVMF_VARS.fd")
+                shutil.copyfile(vars_source, vars_copy)
+                # Isolated firmware pflash only; no target disks or USB devices.
+                command.extend([
+                    "-drive", f"if=pflash,format=raw,unit=0,readonly=on,file={code}",
+                    "-drive", f"if=pflash,format=raw,unit=1,file={vars_copy}",
+                ])
+        else:
+            command.extend([
+                "-kernel", kernel_path, "-initrd", initrd_path,
+                "-append", "console=ttyS0 rdinit=/init panic=-1 loglevel=5",
+            ])
         client = None
         step = 0
         transcript = bytearray()
@@ -127,14 +162,26 @@ def observe(kernel: str, initrd: str, log_dir: str, timeout: int, final_marker: 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--kernel", required=True)
-    parser.add_argument("--initrd", required=True)
+    parser.add_argument("--kernel")
+    parser.add_argument("--initrd")
+    parser.add_argument("--iso")
+    parser.add_argument("--firmware", choices=("bios", "uefi"), default="bios")
     parser.add_argument("--log-dir", required=True)
     parser.add_argument("--timeout", type=int, default=140)
     parser.add_argument("--final-marker", default=None)
     args = parser.parse_args()
+    if args.iso is not None:
+        if args.kernel or args.initrd:
+            parser.error("--iso cannot be combined with --kernel or --initrd")
+    elif not args.kernel or not args.initrd:
+        parser.error("supply --iso or both --kernel and --initrd")
+    if args.firmware == "uefi" and not args.iso:
+        parser.error("--firmware uefi requires --iso")
     try:
-        observe(args.kernel, args.initrd, args.log_dir, args.timeout, args.final_marker)
+        observe(
+            args.kernel, args.initrd, args.log_dir, args.timeout,
+            args.final_marker, args.iso, args.firmware,
+        )
         return 0
     except Exception as error:
         print(f"VITA_I006_GUEST_ERROR: {error}", file=sys.stderr, flush=True)

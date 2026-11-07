@@ -1,0 +1,52 @@
+name: I008 Vita Live ISO Linux/Talos Boot
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/i008-live-iso.yml"
+      - "scripts/ci/validate_i008_live_iso.sh"
+      - "scripts/ci/observe_i006_guest_session.py"
+      - "prototypes/guest-session-init/**"
+      - "prototypes/interaction-runtime/**"
+      - "docs/iterations/I008-live-iso-boot.md"
+      - "docs/backlog/active/VITA-001-C-live-os.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/validate_project_governance.sh .
+
+  bios-uefi-live-iso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check scripts
+        run: |
+          bash -n scripts/ci/validate_i008_live_iso.sh
+          python3 -m py_compile scripts/ci/observe_i006_guest_session.py
+      - name: Boot generated ISO into actual Linux/Talos SDK under BIOS and UEFI
+        run: bash scripts/ci/validate_i008_live_iso.sh
+      - name: Retain evidence, no ISO release artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i008-bios-uefi-guest-evidence
+          path: i008-iso-logs/
+          if-no-files-found: warn
+
+  i001-boot-substrate-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify I001 boot harness syntax
+        run: bash -n scripts/ci/validate_i001_boot.sh
+      - name: Validate original Ventoy probe handoff on disposable loop-backed image
+        run: bash scripts/ci/validate_i001_boot.sh

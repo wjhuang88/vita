@@ -8,3 +8,5 @@ Each check should record the exact commit SHA, environment, redacted evidence an
 - [I005 Linux/Rust Boot Human Acceptance](I005-HUMAN-ACCEPTANCE.md): Alpine base review, source-license obligations, future UEFI/USB/rootfs/Talos session gates.
 - [I006 Linux Guest Talos Session Human Acceptance](I006-HUMAN-ACCEPTANCE.md): guest mount helper and read-only policy review, licensing, TTY, live/rootfs, recovery and device gates.
 - [I007 Volatile Runtime and Offline Recovery](I007-HUMAN-ACCEPTANCE.md): mandatory security review of unauthenticated local root rescue, licensing, terminal/firmware validation.
+- [I008 GRUB ISO Firmware/Talos Human Acceptance](I008-HUMAN-ACCEPTANCE.md): licensing, hardware, TTY and security/recovery approvals.
+- [I009a Minimal Init & Agent Session](I009a-HUMAN-ACCEPTANCE.md): independent PID 1, real TTY, source licensing and physical security approval gates.
