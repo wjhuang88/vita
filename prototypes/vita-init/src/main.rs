@@ -8,7 +8,7 @@ use nix::sys::signal::{Signal, kill};
 use nix::sys::wait::{WaitPidFlag, WaitStatus, waitpid};
 use nix::unistd::{Gid, Pid, Uid, chown, geteuid, setsid};
 use signal_hook::{consts::signal::{SIGINT, SIGTERM}, flag};
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
@@ -265,7 +265,9 @@ fn boot_pid1() -> io::Result<()> {
     }
 
     loop {
-        if stopping.load(Ordering::Relaxed) {
+        // Handle each termination request exactly once; a latched flag would
+        // otherwise spam the serial console while PID 1 remains in safe mode.
+        if stopping.swap(false, Ordering::Relaxed) {
             serial("VITA_I009_SHUTDOWN_REQUESTED");
             if let Some(pid) = session_pid {
                 // The session launcher is the process-group leader after setsid.
