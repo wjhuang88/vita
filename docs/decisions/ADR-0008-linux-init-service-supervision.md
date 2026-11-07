@@ -1,11 +1,85 @@
 # ADR-0008 — Vita Linux init and service supervision selection
 
-Status: **Proposed — selection REOPENED on 2026-11-07 after product-goal clarification; no final init/distro decision or release approval**
+Status: **Proposed — small-and-complete Linux + Rust-native control plane is the accepted product direction; permanent PID 1/OS stack selection remains under I009 evaluation; no release approval**
 Date: 2026-11-07
 Story: VITA-001-C; follow-up [I009 Issue #12](https://github.com/wjhuang88/vita/issues/12).
 Dependencies: ADR-0001, ADR-0002, ADR-0005, ADR-0006, ADR-0007; first firmware ISO proof I008 PR #11.
 
-## Product-goal correction (2026-11-07; decision change)
+## Current product direction — minimal, complete, Rust-owned (2026-11-07, latest clarification; authoritative)
+
+**Hard constraints, confirmed by product owner:** Vita must remain **small and beautiful** as a portable Agent-native Linux. Linux capabilities must be functionally complete, but Vita need not bundle a large conventional distribution, desktop, shell-tool management stack or systemd. Native Rust implementation of bounded foundational capabilities is acceptable and desirable when it improves typed control, memory safety and product integration. *Do not equate a complete Linux capability surface with shipping a general-purpose distro.*
+
+This latest clarification **supersedes** earlier same-day proposed Debian/systemd-first and full general-purpose-distro priority, without erasing historical deliberation. The Alpine/musl/minimal-initramfs kernel work (I005–I008) remains the starting foundation, not a discarded throwaway. Debian/systemd and NixOS are now **optional external-interface/reference benchmarks**, not I009 mandatory implementations or selection leaders.
+
+### Preferred layering and ownership
+
+```text
+Firmware -> GRUB / Vita Live ISO -> Linux kernel + modules + firmware
+  -> narrow early boot /init -> minimal read-only rootfs + bounded /run /tmp
+    -> PID 1 (I009 selection: constrained Vita Rust init OR proven lightweight init)
+       -> supervised noninteractive services: Vita Broker, hardware/network helpers
+       -> TTY/session leader: non-root native Vita/Talos SDK (primary user UI)
+       -> independent authorized offline recovery (NOT model shell, not default)
+    -> Vita OS Core (Rust-first; separate from PID 1 if it improves survivability)
+       -> typed provider interfaces: process, filesystem, storage, network, hardware,
+          user/session, services, logs, update/package and diagnostics
+       -> narrowly privileged broker; target validation, confirm, audit, progress, policy
+    -> opt-in standard Linux applications / compatibility and extension components
+```
+
+A **minimal Linux** means an intentionally small shipped base with **complete extensible Linux capabilities**: normal POSIX/ELF compatibility, real drivers/modules, proper device/event management, networking/Wi-Fi, filesystems, user/TTY management, system calls, software updates and offline recovery. Some services can be modular or installed on demand; no claim of complete hardware coverage before testing.
+
+### PID 1 shortlist, grounded in currently available upstreams
+
+1. **Vita Rust minimal init prototype (valid candidate, not selected yet):** a *small, independent PID 1* that owns child reaping, signals, bounded service restart, orderly shutdown, explicit bootstrap handoff and nothing Agent-specific. Reuse stable Linux interfaces and maintained Rust crates (`nix`, `rustix`); keep richer service policies and the Talos/Agent loop outside PID 1. Do **not** simply keep the current sleeping Rust proof as a release init.
+2. **Dinit or Finit (external proven lightweight comparison):** Dinit's integrated dependencies and service management or Finit's TTY/appliance support offer lower PID 1 implementation risk; evaluate actual Alpine/musl integration, terminal behavior, shutdown, rescue and binary dependency size.
+3. **Alpine BusyBox init + OpenRC (integration control):** the known low-risk distro baseline, not a mandatory final architecture. Use it to benchmark how much safety and integration a custom init must match.
+4. **Rust-native upstream exploratory references:** `threefoldtech/zinit` (Rust/Tokio, Unix socket and JSON-RPC, used in Zero-OS but project-specific); `rinit-org/rinit` (Rust, explicitly work-in-progress); `youhide/oxinit` (pre-alpha). These are sources to study, **not automatically trusted production dependencies**. Tiny container init `tini`/`dumb-init` alone cannot supply Live OS lifecycle.
+5. **systemd/NixOS:** retain only as *capability benchmark or opt-in interoperability*, e.g., a well-defined system-interface behavior to emulate rather than a required service dependency. No blanket ban if a real feature needs it, but no unconditional whole-stack migration.
+
+### What to implement natively vs reuse
+
+| Capability | Vita Rust-owned | Mature external Linux building block |
+| --- | --- | --- |
+| Agent intent, tool schemas, session, policy, confirmation, audit, typed API and orchestration | **Yes** | Do not delegate authorization to the LLM or shell |
+| Process/service state, supervised tasks, diagnostics, startup configuration | **Prefer** narrow Rust service interface/manager; optional dedicated Rust PID 1 | Linux PID/FD, signals/cgroups, libc/kernel primitives; comparison with Dinit/Finit |
+| Process, mount, storage inventory and readonly system info | **Yes** typed `/proc`/`/sys`/netlink/udev monitoring | Kernel namespaces, filesystem and device interfaces; vetted library where required |
+| Networking configuration/link/route state | **Yes** Rust netlink and typed policy adapters | Kernel rtnetlink; reuse proven DHCP/DNS, Wi-Fi (iwd/wpa_supplicant), firewall and crypto stack rather than rewrite protocols |
+| Block mounting, filesystems, partitioning and hardware safety | **Yes** typed state and strict device identity/authorization, audited helpers | Kernel VFS and trusted fsck/mkfs/cryptsetup/blkid/libmount tools/libraries; no model-generated destructive commands |
+| Device events/firmware/hotplug | **Yes** typed inventory and event routing | devtmpfs + mdev/eudev where needed, kernel modules and firmware |
+| Terminal, account and privilege boundary | **Yes** session orchestration and an unprivileged Vita host | Kernel TTY/session/uid/gid/PAM/auth where appropriate; do not hand-write credentials/security primitives casually |
+| Update, signed extension and recovery plan | **Yes** policy, version/state contracts, verified update orchestration | Stable package/image tooling and well-reviewed cryptographic implementations; offline authorized rescue |
+
+**Reliability constraint:** self-implementation is *allowed*, not a purity requirement. An own PID 1 is a safety-critical independent process and must pass the same child-reaping, fault injection, user-tty, crash-loop, upgrade, graceful shutdown and recovery matrix as mature alternatives, without embedding Talos or an async Agent runtime inside PID 1 by default.
+
+### Revised I009 near-term scope
+
+- **A.** Preserve Alpine/musl + existing Vita kernel/ISO baseline; build a reproducible minimal rootfs, inspect shipped dependencies/licenses and modules, boot on BIOS and OVMF UEFI in QEMU (never write real USB).
+- **B.** Compare **two genuine PID 1 implementations** under identical kernel, initramfs, CPU/firmware, terminal and service workload: a narrowly scoped Rust Vita init prototype vs Dinit (or Finit if it provides a concrete TTY integration advantage). Keep BusyBox/OpenRC as control evidence. Bench image size, idle RAM, boot time, static/dynamic dependencies and failure behavior, not just source LOC.
+- **C.** Native non-root Vita/Talos SDK via real controlling TTY; a separately supervised broker fixture with explicit crash recovery; background processes, zombie reaping, dependency ordering, shutdown, bad mount, bad recovery, unavailable model/network.
+- **D.** Implement *only two read-only Rust-native provider proof points* first: service/process status and network link/device inventory (using stable kernel APIs, no human CLI output scraping). Then one typed, **allowlisted, confirmed and audited** non-destructive service action through broker; keep disk/network writes disabled.
+- **E.** Finalize selected PID 1 only after measured results and independent review; record decision + reversal criteria, preserve all previous I001–I008 CI, Ventoy Issue #5 blocker and manual licensing/security/physical gates. Do not build Debian/NixOS in I009 solely for comparison.
+
+### Small-and-beautiful design tests
+
+- Minimize **shipped** binaries/processes, global mutable state and long-lived background daemons, **not** safety checks or supported Linux behaviors.
+- Maintain one typed Rust OS capability model across CLI-less local Agent UI, optional graphical/remote UI and future providers.
+- Keep PID 1 and the privileged broker independently survivable from Talos/model crashes.
+- Support optional packages/standard Linux program execution without making Bash the default UI.
+- Every feature must specify its capability boundary, dependencies, permission context, observable behavior, failure/recovery and evidence.
+- Measure image size, boot speed and RAM; **do not invent numeric budget before baseline measurements**.
+
+### Newly considered reference projects
+
+- Rust/Tokio PID 1 `zinit`, existing JSON-RPC control: https://github.com/threefoldtech/zinit
+- Rust `rinit` (upstream work-in-progress): https://github.com/rinit-org/rinit
+- Rust `oxinit` (upstream pre-alpha): https://github.com/youhide/oxinit
+- Lightweight `nitro` supervisor (0BSD, statically linked musl possible): https://github.com/leahneukirchen/nitro
+- Alpine/musl base rationale: https://www.alpinelinux.org/about/
+- Rust network link/address/route APIs: https://docs.rs/rtnetlink/latest/rtnetlink/
+- Dinit/Finit earlier comparison and licensing remains in historical sections below.
+
+## Earlier product-goal correction (historical, further refined above)
 
 **Hard product intent:** Vita is a functionally complete Linux OS (drivers, networking, storage, users/sessions, packages, services, security, recoverability) with **native Agent-first interaction** as the primary way humans operate it. The differentiator is *intent-to-governed-system-capability*, not the smallest possible PID 1 or an agent CLI running in a terminal. The earlier Alpine BusyBox+OpenRC recommendation was based on a narrower minimum-Linux-appliance assumption and is now a **historical low-overhead baseline, not the selected product architecture**. I005-I008 remain valid experimental proofs; do not change their previously accepted scope or claim a distro migration has happened.
 
@@ -100,7 +174,7 @@ Run a bounded Dinit challenger PoC only if the selected stack shows measured una
 - systemd: https://freedesktop.org/software/systemd/man/latest/init.html
 
 
-## Change-control addendum: Agent-first full Linux selection (2026-11-07)
+## Historical change-control addendum: earlier proposed systemd/full-distro path (superseded by the latest minimal-Rust direction)
 
 The user clarified that **intelligent ease of use and complete Linux functionality** outrank a minimal image footprint. Therefore the previous Alpine/OpenRC-first decision is **on hold** pending system-platform comparative evidence. I009 Issue #12 is re-scoped to evaluate the operating system base **and** the machine interfaces exposed to the Agent; it is not a commitment to replace Rust PID 1 with BusyBox init.
 
@@ -123,7 +197,7 @@ The user clarified that **intelligent ease of use and complete Linux functionali
 | **Chimera/Dinit or Alpine with Dinit** | Dependency and supervision control socket and small service model | Fewer ready-made standardized general-Linux management API integrations; distro and session/udev integration need proof | **Conditional challenger** |
 | **Finit / OpenWrt procd** | Embedded appliance functionality; Finit integrates service+getty, procd offers event/service ubus | Tailored to appliance/router assumptions; less obvious broad general-Linux stack and platform API ecosystem | **Specialized alternatives** |
 
-**Provisional recommendation:** systemd appears better for Vita's **complete OS capability surface** than an init-only minimalism contest; **Debian stable + systemd + native Rust Broker** is the lead engineering experiment, not a final migration decision. NixOS may win if versioned system-state transactions/rollbacks are a primary product need and its resource/delivery cost is acceptable. Neither is proven in Vita yet.
+**Superseded provisional recommendation:** systemd appeared better for Vita's **complete OS capability surface** than an init-only minimalism contest; **Debian stable + systemd + native Rust Broker** is the lead engineering experiment, not a final migration decision. NixOS may win if versioned system-state transactions/rollbacks are a primary product need and its resource/delivery cost is acceptable. Neither is proven in Vita yet.
 
 ### What the Agent should actually control
 
