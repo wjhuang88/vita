@@ -28,12 +28,14 @@ const POLL: Duration = Duration::from_millis(50);
 struct Fixture {
     crash_session: bool,
     test_orphan: bool,
+    spawn_failure: bool,
 }
 
 fn parse_boot_options(cmdline: &str) -> io::Result<Fixture> {
     let mut fixture = Fixture::default();
     let mut crash_seen = false;
     let mut orphan_seen = false;
+    let mut spawn_failure_seen = false;
     let mut recovery_seen = false;
     for word in cmdline.split_ascii_whitespace() {
         if let Some(value) = word.strip_prefix("vita.recovery=") {
@@ -55,6 +57,13 @@ fn parse_boot_options(cmdline: &str) -> io::Result<Fixture> {
             }
             orphan_seen = true;
             fixture.test_orphan = true;
+        }
+        if let Some(value) = word.strip_prefix("vita.i009.test_spawn_failure=") {
+            if spawn_failure_seen || value != "1" {
+                return Err(io::Error::other("invalid or duplicate spawn failure fixture token"));
+            }
+            spawn_failure_seen = true;
+            fixture.spawn_failure = true;
         }
     }
     Ok(fixture)
@@ -133,6 +142,11 @@ fn session_child(crash: bool) -> io::Result<()> {
         serial("VITA_I009_SIMULATED_SESSION_CRASH");
         std::process::exit(42);
     }
+    // Ctrl+C targets the entire foreground process group, including this
+    // launcher. Catch SIGINT here so Talos' own Ctrl+C cancellation handler
+    // can complete and the launcher can wait/reap it normally. Caught signal
+    // dispositions reset on exec into the actual Talos binary.
+    flag::register(SIGINT, Arc::new(AtomicBool::new(false)))?;
     // Become a new session leader BEFORE opening the serial tty so the tty
     // can become this session's controlling terminal (no shell/getty).
     let sid = setsid().map_err(io::Error::other)?;
@@ -175,6 +189,11 @@ fn orphan_child() {
     thread::sleep(Duration::from_millis(300));
 }
 
+fn signal_parent_fixture() -> io::Result<()> {
+    thread::sleep(Duration::from_millis(650));
+    kill(Pid::from_raw(1), Signal::SIGTERM).map_err(io::Error::other)
+}
+
 fn uid_from_proc(pid: Pid) -> io::Result<u32> {
     let status = fs::read_to_string(format!("/proc/{pid}/status"))?;
     let line = status.lines().find(|line| line.starts_with("Uid:"))
@@ -200,12 +219,65 @@ fn spawn_session(crash: bool) -> io::Result<Pid> {
         .stderr(Stdio::from(c))
         .spawn()?;
     let pid = Pid::from_raw(i32::try_from(child.id()).map_err(io::Error::other)?);
-    if uid_from_proc(pid)? != VITA_UID {
-        let _ = kill(pid, Signal::SIGKILL);
-        return Err(io::Error::other("Talos child would run as root"));
+    // Failure to inspect a child (e.g., when it exits during /proc lookup)
+    // must not escape with a potentially live, untracked session process.
+    match uid_from_proc(pid) {
+        Ok(uid) if uid == VITA_UID => {},
+        result => {
+            let _ = kill(pid, Signal::SIGKILL);
+            let _ = waitpid(pid, None);
+            return Err(io::Error::other(format!(
+                "Talos session UID could not be verified: {result:?}"
+            )));
+        }
     }
     serial(&format!("VITA_I009_TALOS_UID={VITA_UID} pid={pid}"));
     Ok(pid)
+}
+
+fn start_or_failsafe(crash: bool, injected_failure: bool) -> Option<Pid> {
+    let result = if injected_failure {
+        Err(io::Error::other("VM-only injected session spawn failure"))
+    } else {
+        spawn_session(crash)
+    };
+    match result {
+        Ok(pid) => Some(pid),
+        Err(error) => {
+            serial(&format!("VITA_I009_SESSION_START_FAILED: {error}"));
+            serial("VITA_I009_FAILSAFE_NO_ROOT_SHELL");
+            None
+        }
+    }
+}
+
+fn fatal_pid1_reaper(error: io::Error) -> ! {
+    serial(&format!("VITA_I006_GUEST_SESSION_ERROR: {error}"));
+    serial("VITA_I009_FATAL_PID1_REAPER_ACTIVE");
+    serial("VITA_I009_FAILSAFE_NO_ROOT_SHELL");
+    let stopping = Arc::new(AtomicBool::new(false));
+    if let Err(e) = flag::register(SIGTERM, stopping.clone()) {
+        serial(&format!("VITA_I009_FATAL_SIGNAL_HANDLER_ERROR: {e}"));
+    }
+    if let Err(e) = flag::register(SIGINT, stopping.clone()) {
+        serial(&format!("VITA_I009_FATAL_SIGNAL_HANDLER_ERROR: {e}"));
+    }
+    loop {
+        if stopping.swap(false, Ordering::Relaxed) {
+            serial("VITA_I009_SHUTDOWN_REQUESTED");
+        }
+        match waitpid(Pid::from_raw(-1), Some(WaitPidFlag::WNOHANG)) {
+            Ok(WaitStatus::StillAlive) | Err(Errno::ECHILD) => thread::sleep(POLL),
+            Ok(WaitStatus::Exited(pid, _)) | Ok(WaitStatus::Signaled(pid, _, _)) => {
+                serial(&format!("VITA_I009_FATAL_REAPED pid={pid}"));
+            }
+            Ok(_) | Err(Errno::EINTR) => {},
+            Err(e) => {
+                serial(&format!("VITA_I009_FATAL_WAIT_ERROR: {e}"));
+                thread::sleep(POLL);
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -261,14 +333,26 @@ fn boot_pid1() -> io::Result<()> {
     let mut session_pid = None;
     if let Some(attempt) = budget.allocate(Instant::now()) {
         serial(&format!("VITA_I009_SESSION_START attempt={attempt}"));
-        session_pid = Some(spawn_session(flags.crash_session)?);
+        session_pid = start_or_failsafe(flags.crash_session, flags.spawn_failure);
+    }
+    if flags.spawn_failure {
+        // VM-only: prove that a startup failure does not stop the reaper or
+        // signal processing; orphan and signal fixtures run afterward.
+        Command::new(INIT_BINARY)
+            .arg("--signal-parent")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?;
     }
 
+    let mut shutting_down = false;
     loop {
         // Handle each termination request exactly once; a latched flag would
         // otherwise spam the serial console while PID 1 remains in safe mode.
         if stopping.swap(false, Ordering::Relaxed) {
             serial("VITA_I009_SHUTDOWN_REQUESTED");
+            shutting_down = true;
             if let Some(pid) = session_pid {
                 // The session launcher is the process-group leader after setsid.
                 // The experimental crash fixture never claims group ownership.
@@ -277,7 +361,8 @@ fn boot_pid1() -> io::Result<()> {
                 }
                 let _ = kill(pid, Signal::SIGTERM);
             }
-            session_pid = None;
+            // Keep tracking/reaping the terminated child. Never restart while
+            // shutting down even if it exits by signal.
         }
         let mut changed = false;
         loop {
@@ -287,14 +372,16 @@ fn boot_pid1() -> io::Result<()> {
                     changed = true;
                     if session_pid == Some(pid) {
                         session_pid = None;
-                        if code == 0 {
+                        if shutting_down {
+                            serial("VITA_I009_SHUTDOWN_SESSION_REAPED");
+                        } else if code == 0 {
                             serial("VITA_I006_GUEST_TALOS_SESSION_OK");
                             serial("VITA_I007_DEFAULT_TALOS_EXIT_OK");
                         } else if let Some(attempt) = budget.allocate(Instant::now()) {
                             serial(&format!("VITA_I009_SESSION_RESTART attempt={attempt} exit={code}"));
                             thread::sleep(Duration::from_millis(120));
                             serial(&format!("VITA_I009_SESSION_START attempt={attempt}"));
-                            session_pid = Some(spawn_session(flags.crash_session)?);
+                            session_pid = start_or_failsafe(flags.crash_session, false);
                         } else {
                             serial(&format!("VITA_I009_CRASH_BUDGET_EXHAUSTED attempts={MAX_LAUNCHES}"));
                             serial("VITA_I009_FAILSAFE_NO_ROOT_SHELL");
@@ -311,9 +398,11 @@ fn boot_pid1() -> io::Result<()> {
                     if session_pid == Some(pid) {
                         session_pid = None;
                         serial(&format!("VITA_I009_SESSION_SIGNALLED signal={sig}"));
-                        if let Some(attempt) = budget.allocate(Instant::now()) {
+                        if shutting_down {
+                            serial("VITA_I009_SHUTDOWN_SESSION_REAPED");
+                        } else if let Some(attempt) = budget.allocate(Instant::now()) {
                             serial(&format!("VITA_I009_SESSION_START attempt={attempt}"));
-                            session_pid = Some(spawn_session(flags.crash_session)?);
+                            session_pid = start_or_failsafe(flags.crash_session, false);
                         } else {
                             serial(&format!("VITA_I009_CRASH_BUDGET_EXHAUSTED attempts={MAX_LAUNCHES}"));
                             serial("VITA_I009_FAILSAFE_NO_ROOT_SHELL");
@@ -321,6 +410,7 @@ fn boot_pid1() -> io::Result<()> {
                     }
                 }
                 Ok(_) => { changed = true; }
+                Err(Errno::EINTR) => continue,
                 Err(e) => return Err(io::Error::other(format!("waitpid failed: {e}"))),
             }
         }
@@ -337,16 +427,15 @@ fn main() {
         Some("--session-child") => session_child(args.get(2).is_some_and(|s| s == "--fixture-crash")),
         Some("--orphan-parent") => orphan_parent(),
         Some("--orphan-child") => { orphan_child(); Ok(()) },
+        Some("--signal-parent") => signal_parent_fixture(),
         _ => Err(io::Error::other("unsupported Vita init mode")),
     };
     if let Err(e) = result {
+        if std::process::id() == 1 {
+            fatal_pid1_reaper(e);
+        }
         serial(&format!("VITA_I006_GUEST_SESSION_ERROR: {e}"));
-        if std::process::id() != 1 {
-            std::process::exit(1);
-        }
-        loop {
-            thread::sleep(Duration::from_secs(60));
-        }
+        std::process::exit(1);
     }
 }
 
@@ -358,12 +447,22 @@ mod tests {
     fn boot_options_reject_recovery_and_ambiguous_fixture() {
         assert_eq!(parse_boot_options("console=ttyS0").unwrap(), Fixture::default());
         assert_eq!(parse_boot_options("vita.i009.test_crash=1 vita.i009.test_orphan=1").unwrap(),
-            Fixture { crash_session: true, test_orphan: true });
+            Fixture { crash_session: true, test_orphan: true, spawn_failure: false });
         for line in ["vita.recovery=1", "vita.recovery=yes", "vita.recovery=1 vita.recovery=0",
             "vita.i009.test_crash=2", "vita.i009.test_crash=1 vita.i009.test_crash=1",
-            "vita.i009.test_orphan=1 vita.i009.test_orphan=0"] {
+            "vita.i009.test_orphan=1 vita.i009.test_orphan=0",
+            "vita.i009.test_spawn_failure=0",
+            "vita.i009.test_spawn_failure=1 vita.i009.test_spawn_failure=1"] {
             assert!(parse_boot_options(line).is_err(), "{line}");
         }
+    }
+
+    #[test]
+    fn startup_failure_is_explicitly_fixture_gated() {
+        assert_eq!(
+            parse_boot_options("vita.i009.test_orphan=1 vita.i009.test_spawn_failure=1").unwrap(),
+            Fixture { crash_session: false, test_orphan: true, spawn_failure: true }
+        );
     }
 
     #[test]
