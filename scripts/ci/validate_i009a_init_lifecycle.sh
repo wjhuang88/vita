@@ -151,4 +151,14 @@ python3 "$ROOT_DIR/scripts/ci/observe_i009a_crash.py" --mode fatal --iso "$FATAL
   --log-dir "$LOG_DIR/fatal" --timeout 150
 grep -Fq VITA_I009_FATAL_PID1_REAPER_ACTIVE "$LOG_DIR/fatal/guest-serial.log" \
   || fail "fatal PID1 reaper fallback was not entered"
+echo "[I009a] Exercise PID 1 shutdown while Talos owns the foreground TTY"
+sed -i 's/vita.i009.test_orphan=1 vita.i009.test_fatal=1/vita.i009.test_active_shutdown=1/' "$ISO_TREE/boot/grub/grub.cfg"
+SHUTDOWN_ISO="$WORK_DIR/vita-active-session-shutdown.iso"
+grub-mkrescue -o "$SHUTDOWN_ISO" "$ISO_TREE" >"$LOG_DIR/grub-active-shutdown.log" 2>&1 \
+  || fail "active shutdown fixture ISO creation failed"
+sha256sum "$SHUTDOWN_ISO" >"$LOG_DIR/active-shutdown-iso.sha256"
+python3 "$ROOT_DIR/scripts/ci/observe_i009a_crash.py" --mode shutdown --iso "$SHUTDOWN_ISO" \
+  --log-dir "$LOG_DIR/active-shutdown" --timeout 150
+grep -Fq VITA_I009_SHUTDOWN_SESSION_REAPED "$LOG_DIR/active-shutdown/guest-serial.log" \
+  || fail "active Talos child was not reaped after PID1 SIGTERM"
 echo "VITA_I009A_MINIMAL_INIT_LIFECYCLE_VM_OK"

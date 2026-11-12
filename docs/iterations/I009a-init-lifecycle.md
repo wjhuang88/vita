@@ -69,3 +69,7 @@ This is still a **VM-only engineering candidate**. Final exact-head CI, third AI
 - The earlier fatal fallback fixture executed on [I009a CI 43253474750](https://github.com/wjhuang88/vita/actions/runs/43253474750) and emitted `VITA_I009A_FATAL_BOOT_REAPER_VM_OK parent=442 reaped=[442, 443]` (two distinct reaped child PIDs) plus shutdown-signal evidence.
 
 After these changes the **new exact-head CI and independent AI re-review remain PENDING**. This prototype is never a shipping recovery or physical USB approval.
+
+## Independent AI review round 4 — live-session shutdown gate (2026-11-12)
+
+Fourth separate [Copilot Code Review](https://github.com/wjhuang88/vita/pull/14) confirmed the cpio `root:root` ownership isolation fix and arbitrary serial-read boundary fix. It flagged a **previously untested live-session shutdown** path for closer assessment: PID 1 receives SIGTERM while Talos owns the controlling TTY, and must not respawn or abandon its child. A dedicated **BIOS guest ISO** now starts a real non-root Talos console, delivers SIGTERM to PID 1 via a guest-local helper while the session is active, and requires `VITA_I009_SHUTDOWN_REQUESTED` plus `VITA_I009_SHUTDOWN_SESSION_REAPED` and **exactly one session start**. Do not claim this gate passed or select production Rust init before exact-head CI plus independent AI re-review. I009b still owns real shutdown/reboot and product-grade device/rootfs work.

@@ -31,6 +31,7 @@ struct Fixture {
     test_orphan: bool,
     spawn_failure: bool,
     fatal_failure: bool,
+    test_active_shutdown: bool,
 }
 
 fn parse_boot_options(cmdline: &str) -> io::Result<Fixture> {
@@ -39,6 +40,7 @@ fn parse_boot_options(cmdline: &str) -> io::Result<Fixture> {
     let mut orphan_seen = false;
     let mut spawn_failure_seen = false;
     let mut fatal_seen = false;
+    let mut active_shutdown_seen = false;
     let mut recovery_seen = false;
     for word in cmdline.split_ascii_whitespace() {
         if let Some(value) = word.strip_prefix("vita.recovery=") {
@@ -75,9 +77,21 @@ fn parse_boot_options(cmdline: &str) -> io::Result<Fixture> {
             fatal_seen = true;
             fixture.fatal_failure = true;
         }
+        if let Some(value) = word.strip_prefix("vita.i009.test_active_shutdown=") {
+            if active_shutdown_seen || value != "1" {
+                return Err(io::Error::other("invalid or duplicate active shutdown fixture token"));
+            }
+            active_shutdown_seen = true;
+            fixture.test_active_shutdown = true;
+        }
     }
     if fixture.fatal_failure && !fixture.test_orphan {
         return Err(io::Error::other("fatal fixture needs an adopted orphan"));
+    }
+    if fixture.test_active_shutdown
+        && (fixture.crash_session || fixture.spawn_failure || fixture.fatal_failure)
+    {
+        return Err(io::Error::other("active shutdown fixture must start a normal session"));
     }
     Ok(fixture)
 }
@@ -227,8 +241,10 @@ fn orphan_child(signal_pid1: bool) -> io::Result<()> {
     Ok(())
 }
 
-fn signal_parent_fixture() -> io::Result<()> {
-    thread::sleep(Duration::from_millis(650));
+fn signal_parent_fixture(active: bool) -> io::Result<()> {
+    // A longer guest-local delay gives the nonroot native Talos console time
+    // to claim its controlling TTY before this fixture sends SIGTERM to PID1.
+    thread::sleep(Duration::from_millis(if active { 1750 } else { 650 }));
     kill(Pid::from_raw(1), Signal::SIGTERM).map_err(io::Error::other)
 }
 
@@ -388,11 +404,15 @@ fn boot_pid1() -> io::Result<()> {
         session_pid = start_or_failsafe(flags.crash_session, flags.spawn_failure);
     }
     let mut signal_helper_pid = None;
-    if flags.spawn_failure {
-        // VM-only: prove that a startup failure does not stop the reaper or
-        // signal processing; orphan and signal fixtures run afterward.
-        let helper = Command::new(INIT_BINARY)
-            .arg("--signal-parent")
+    if flags.spawn_failure || flags.test_active_shutdown {
+        // VM-only: prove that failed startup and *live* non-root sessions do
+        // not stop PID1's signal handling and shutdown/reaping behavior.
+        let mut cmd = Command::new(INIT_BINARY);
+        cmd.arg("--signal-parent");
+        if flags.test_active_shutdown {
+            cmd.arg("--active");
+        }
+        let helper = cmd
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -495,7 +515,7 @@ fn main() {
         Some("--session-child") => session_child(args.get(2).is_some_and(|s| s == "--fixture-crash")),
         Some("--orphan-parent") => orphan_parent(args.get(2).is_some_and(|s| s == "--signal-pid1")),
         Some("--orphan-child") => orphan_child(args.get(2).is_some_and(|s| s == "--signal-pid1")),
-        Some("--signal-parent") => signal_parent_fixture(),
+        Some("--signal-parent") => signal_parent_fixture(args.get(2).is_some_and(|s| s == "--active")),
         _ => Err(io::Error::other("unsupported Vita init mode")),
     };
     if let Err(e) = result {
@@ -515,7 +535,7 @@ mod tests {
     fn boot_options_reject_recovery_and_ambiguous_fixture() {
         assert_eq!(parse_boot_options("console=ttyS0").unwrap(), Fixture::default());
         assert_eq!(parse_boot_options("vita.i009.test_crash=1 vita.i009.test_orphan=1").unwrap(),
-            Fixture { crash_session: true, test_orphan: true, spawn_failure: false, fatal_failure: false });
+            Fixture { crash_session: true, test_orphan: true, spawn_failure: false, fatal_failure: false, test_active_shutdown: false });
         for line in ["vita.recovery=1", "vita.recovery=yes", "vita.recovery=1 vita.recovery=0",
             "vita.i009.test_crash=2", "vita.i009.test_crash=1 vita.i009.test_crash=1",
             "vita.i009.test_orphan=1 vita.i009.test_orphan=0",
@@ -523,7 +543,11 @@ mod tests {
             "vita.i009.test_spawn_failure=1 vita.i009.test_spawn_failure=1",
             "vita.i009.test_fatal=0",
             "vita.i009.test_fatal=1",
-            "vita.i009.test_orphan=1 vita.i009.test_fatal=1 vita.i009.test_fatal=1"] {
+            "vita.i009.test_orphan=1 vita.i009.test_fatal=1 vita.i009.test_fatal=1",
+            "vita.i009.test_active_shutdown=0",
+            "vita.i009.test_active_shutdown=1 vita.i009.test_crash=1",
+            "vita.i009.test_active_shutdown=1 vita.i009.test_spawn_failure=1",
+            "vita.i009.test_active_shutdown=1 vita.i009.test_active_shutdown=1"] {
             assert!(parse_boot_options(line).is_err(), "{line}");
         }
     }
@@ -532,7 +556,7 @@ mod tests {
     fn startup_failure_is_explicitly_fixture_gated() {
         assert_eq!(
             parse_boot_options("vita.i009.test_orphan=1 vita.i009.test_spawn_failure=1").unwrap(),
-            Fixture { crash_session: false, test_orphan: true, spawn_failure: true, fatal_failure: false }
+            Fixture { crash_session: false, test_orphan: true, spawn_failure: true, fatal_failure: false, test_active_shutdown: false }
         );
     }
 
@@ -540,7 +564,15 @@ mod tests {
     fn fatal_failure_requires_an_adopted_grandchild() {
         assert_eq!(
             parse_boot_options("vita.i009.test_orphan=1 vita.i009.test_fatal=1").unwrap(),
-            Fixture { crash_session: false, test_orphan: true, spawn_failure: false, fatal_failure: true }
+            Fixture { crash_session: false, test_orphan: true, spawn_failure: false, fatal_failure: true, test_active_shutdown: false }
+        );
+    }
+
+    #[test]
+    fn active_shutdown_is_independent_of_crash_and_recovery_modes() {
+        assert_eq!(
+            parse_boot_options("vita.i009.test_active_shutdown=1").unwrap(),
+            Fixture { test_active_shutdown: true, ..Fixture::default() }
         );
     }
 

@@ -73,8 +73,31 @@ def run(iso: str, log_dir: str, timeout: int, mode: str = "crash") -> None:
                         raise RuntimeError("serial log exceeds 2 MiB bound")
                     output = data.decode("utf-8", errors="replace").replace("\r", "")
                     validate_guest_error(output, mode)
-                    if "VITA_I007_RECOVERY_READY" in output or "vita> " in output:
+                    if "VITA_I007_RECOVERY_READY" in output or (
+                        mode != "shutdown" and "vita> " in output
+                    ):
                         raise RuntimeError("crash fixture unexpectedly opened a session/recovery")
+                    if mode == "shutdown":
+                        required = (
+                            "VITA_I009_ROOTFS_OWNER_OK",
+                            "VITA_I009_TALOS_UID=1000",
+                            "VITA_I009_CONTROLLING_TTY_OK",
+                            "vita> ",
+                            "VITA_I009_SHUTDOWN_REQUESTED",
+                            "VITA_I009_SHUTDOWN_SESSION_REAPED",
+                        )
+                        if all(marker in output for marker in required):
+                            if output.count("VITA_I009_SESSION_START attempt=") != 1:
+                                raise RuntimeError("shutdown unexpectedly respawned the active session")
+                            if any(x in output for x in (
+                                "VITA_I009_SESSION_RESTART",
+                                "VITA_I007_DEFAULT_TALOS_EXIT_OK",
+                                "VITA_I009_FAILSAFE_NO_ROOT_SHELL",
+                            )):
+                                raise RuntimeError("active session did not terminate through controlled shutdown")
+                            print("VITA_I009A_ACTIVE_SESSION_SHUTDOWN_VM_OK", flush=True)
+                            return
+                        continue
                     if mode == "fatal":
                         if all(x in output for x in (
                             "VITA_I009_ORPHAN_PARENT_PID=",
@@ -134,6 +157,6 @@ if __name__ == "__main__":
     parser.add_argument("--iso", required=True)
     parser.add_argument("--log-dir", required=True)
     parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--mode", choices=("crash", "spawn", "fatal"), default="crash")
+    parser.add_argument("--mode", choices=("crash", "spawn", "fatal", "shutdown"), default="crash")
     args = parser.parse_args()
     run(args.iso, args.log_dir, args.timeout, args.mode)
