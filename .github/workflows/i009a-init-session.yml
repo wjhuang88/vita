@@ -1,0 +1,45 @@
+name: I009a Rust Init and Agent Session
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/i009a-init-session.yml"
+      - "prototypes/vita-init/**"
+      - "scripts/ci/validate_i009a_init_lifecycle.sh"
+      - "scripts/ci/observe_i009a_crash.py"
+      - "scripts/ci/test_i009a_observer.py"
+      - "scripts/ci/observe_i006_guest_session.py"
+      - "prototypes/interaction-runtime/**"
+      - "docs/iterations/I009a-init-lifecycle.md"
+      - "docs/backlog/active/VITA-001-C-live-os.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/validate_project_governance.sh .
+
+  init-session-guest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate fixtures
+        run: |
+          bash -n scripts/ci/validate_i009a_init_lifecycle.sh
+          python3 -m py_compile scripts/ci/observe_i009a_crash.py scripts/ci/observe_i006_guest_session.py
+          python3 -m unittest discover -s scripts/ci -p test_i009a_observer.py -v
+      - name: Boot real ISO under BIOS and UEFI; test orphan and crash containment
+        run: bash scripts/ci/validate_i009a_init_lifecycle.sh
+      - name: Preserve bounded guest evidence only (no release ISO)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i009a-init-guest-evidence
+          path: i009a-init-logs/
+          if-no-files-found: warn
