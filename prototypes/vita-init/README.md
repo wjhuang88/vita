@@ -11,3 +11,5 @@ This crate tests whether **a small Rust PID 1** is viable for Vita's small-and-c
 CI entry: \`bash scripts/ci/validate_i009a_init_lifecycle.sh\`. Retains serial logs and hashes but does not release experimental ISO.
 
 Independent AI code review found fatal-path reaping, Ctrl+C and late orphan-marker gaps on the first head. The follow-up branch adds a non-restarting safe reaper path, launcher-only SIGINT handling, and dedicated BIOS guest scenarios for Ctrl+C and injected session-spawn failure. These are **pending exact-head CI and AI re-review**, not evidence of a production init.
+
+Follow-up independent review also required a true `boot_pid1() -> Err` test with orphan and signal after fallback, protection against confusing the helper PID with an orphan, and a shutdown guard inside the restart backoff. The new fatal fixture verifies that **two distinct child PIDs** are reaped, including the known orphan parent, before accepting SIGTERM. Final exact-head CI and AI re-review remain required.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import socket
 import subprocess
 import tempfile
@@ -59,9 +60,34 @@ def run(iso: str, log_dir: str, timeout: int, mode: str = "crash") -> None:
                         raise RuntimeError("serial log exceeds 2 MiB bound")
                     output = data.decode("utf-8", errors="replace").replace("\r", "")
                     if "VITA_I006_GUEST_SESSION_ERROR" in output:
-                        raise RuntimeError("Linux init failure\n" + output[-2000:])
+                        if mode != "fatal":
+                            raise RuntimeError("Linux init failure\n" + output[-2000:])
+                        # Only the explicitly injected fatal error is accepted.
+                        # Do not reject a partially received serial line.
+                        tail = output.split("VITA_I006_GUEST_SESSION_ERROR:", 1)[1]
+                        if "\n" in tail and "VM-only injected fatal boot_pid1 failure" not in tail.split("\n", 1)[0]:
+                            raise RuntimeError("unexpected fatal boot error: " + tail[:300])
                     if "VITA_I007_RECOVERY_READY" in output or "vita> " in output:
                         raise RuntimeError("crash fixture unexpectedly opened a session/recovery")
+                    if mode == "fatal":
+                        if all(x in output for x in (
+                            "VITA_I009_ORPHAN_PARENT_PID=",
+                            "VITA_I009_FATAL_PID1_REAPER_ACTIVE",
+                            "VITA_I009_FAILSAFE_NO_ROOT_SHELL",
+                            "VITA_I009_SHUTDOWN_REQUESTED",
+                        )):
+                            parent = re.search(r"VITA_I009_ORPHAN_PARENT_PID=(\d+)", output)
+                            reaped = [int(x) for x in re.findall(r"VITA_I009_FATAL_REAPED pid=(\d+)", output)]
+                            # At least two distinct adopted/direct child PIDs
+                            # must have been reaped. The direct parent PID is
+                            # known, and a different grandchild PID is required.
+                            if parent and int(parent.group(1)) in reaped and any(
+                                pid != int(parent.group(1)) for pid in reaped
+                            ):
+                                print("VITA_I009A_FATAL_BOOT_REAPER_VM_OK "
+                                      f"parent={parent.group(1)} reaped={reaped}", flush=True)
+                                return
+                        continue
                     if mode == "spawn":
                         # Failed session creation must preserve the main PID 1
                         # loop: it must still reap an adopted grandchild and
@@ -102,6 +128,6 @@ if __name__ == "__main__":
     parser.add_argument("--iso", required=True)
     parser.add_argument("--log-dir", required=True)
     parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--mode", choices=("crash", "spawn"), default="crash")
+    parser.add_argument("--mode", choices=("crash", "spawn", "fatal"), default="crash")
     args = parser.parse_args()
     run(args.iso, args.log_dir, args.timeout, args.mode)

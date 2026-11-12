@@ -141,4 +141,14 @@ sha256sum "$SPAWN_FAIL_ISO" >"$LOG_DIR/spawn-failure-iso.sha256"
 python3 "$ROOT_DIR/scripts/ci/observe_i009a_crash.py" --mode spawn --iso "$SPAWN_FAIL_ISO" \
   --log-dir "$LOG_DIR/spawn-failure" --timeout 150
 
+echo "[I009a] Exercise actual PID 1 fatal fallback after adopting a descendant"
+sed -i 's/vita.i009.test_spawn_failure=1/vita.i009.test_fatal=1/' "$ISO_TREE/boot/grub/grub.cfg"
+FATAL_ISO="$WORK_DIR/vita-fatal-reaper-engineering.iso"
+grub-mkrescue -o "$FATAL_ISO" "$ISO_TREE" >"$LOG_DIR/grub-fatal.log" 2>&1 \
+  || fail "fatal-reaper fixture ISO failed"
+sha256sum "$FATAL_ISO" >"$LOG_DIR/fatal-iso.sha256"
+python3 "$ROOT_DIR/scripts/ci/observe_i009a_crash.py" --mode fatal --iso "$FATAL_ISO" \
+  --log-dir "$LOG_DIR/fatal" --timeout 150
+grep -Fq VITA_I009_FATAL_PID1_REAPER_ACTIVE "$LOG_DIR/fatal/guest-serial.log" \
+  || fail "fatal PID1 reaper fallback was not entered"
 echo "VITA_I009A_MINIMAL_INIT_LIFECYCLE_VM_OK"

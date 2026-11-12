@@ -46,3 +46,17 @@ Follow-up fix scope:
 - Catch SIGINT in the session launcher (not Talos) so native Talos Ctrl+C handling remains functional; add BIOS ISO Ctrl+C guest proof.
 - Require the orphan marker before QEMU observer exit; eliminate the flaky late-marker race.
 - **All revised exact-head CI and AI re-review remain PENDING** until independently checked, and all human/legal/physical gates remain unapproved.
+
+## Independent AI review round 2 (2026-11-12)
+
+Copilot's [second exact-head review](https://github.com/wjhuang88/vita/actions/runs/43251358633) marked **all three first-round findings resolved**, then flagged:
+1. Missing guest coverage of the *actual* fatal `boot_pid1() -> Err` / fallback reaper.
+2. The signal helper PID could be falsely counted as the adopted orphan.
+3. A pending shutdown during the 120 ms restart backoff might still launch another session.
+
+Follow-up changes:
+- A dedicated fatal boot token returns an error from PID 1 **after forking the orphan-parent fixture**; the adopted grandchild itself signals PID 1. A separate BIOS guest observer requires the fatal diagnostic, both the known direct parent and a **distinct reaped grandchild PID**, and subsequent SIGTERM handling.
+- Track the `--signal-parent` helper's PID separately in the nonfatal fixture; never count it as an adopted orphan.
+- Check for pending stop before retry-budget allocation and again after restart backoff; do not launch an additional Talos session once shutdown is requested.
+
+This is still a **VM-only engineering candidate**. Final exact-head CI, third AI re-review and human/manual approval gates remain **PENDING** until verified. Do not close story C or declare product init complete.
