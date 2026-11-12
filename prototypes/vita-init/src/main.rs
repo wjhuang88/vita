@@ -29,6 +29,7 @@ struct Fixture {
     crash_session: bool,
     test_orphan: bool,
     spawn_failure: bool,
+    fatal_failure: bool,
 }
 
 fn parse_boot_options(cmdline: &str) -> io::Result<Fixture> {
@@ -36,6 +37,7 @@ fn parse_boot_options(cmdline: &str) -> io::Result<Fixture> {
     let mut crash_seen = false;
     let mut orphan_seen = false;
     let mut spawn_failure_seen = false;
+    let mut fatal_seen = false;
     let mut recovery_seen = false;
     for word in cmdline.split_ascii_whitespace() {
         if let Some(value) = word.strip_prefix("vita.recovery=") {
@@ -65,6 +67,16 @@ fn parse_boot_options(cmdline: &str) -> io::Result<Fixture> {
             spawn_failure_seen = true;
             fixture.spawn_failure = true;
         }
+        if let Some(value) = word.strip_prefix("vita.i009.test_fatal=") {
+            if fatal_seen || value != "1" {
+                return Err(io::Error::other("invalid or duplicate fatal fixture token"));
+            }
+            fatal_seen = true;
+            fixture.fatal_failure = true;
+        }
+    }
+    if fixture.fatal_failure && !fixture.test_orphan {
+        return Err(io::Error::other("fatal fixture needs an adopted orphan"));
     }
     Ok(fixture)
 }
@@ -173,20 +185,28 @@ fn session_child(crash: bool) -> io::Result<()> {
     }
 }
 
-fn orphan_parent() -> io::Result<()> {
+fn orphan_parent(signal_pid1: bool) -> io::Result<()> {
     // A grandchild exits AFTER its direct parent: Linux must reparent it to
-    // PID 1. The VM reaper asserts observing this different, adopted PID.
-    Command::new(INIT_BINARY)
-        .arg("--orphan-child")
-        .stdin(Stdio::null())
+    // PID 1. Fatal fixture uses *this adopted child* to signal PID 1, with
+    // no separate signal-helper child that could fake the orphan proof.
+    let mut cmd = Command::new(INIT_BINARY);
+    cmd.arg("--orphan-child");
+    if signal_pid1 {
+        cmd.arg("--signal-pid1");
+    }
+    cmd.stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()?;
     Ok(())
 }
 
-fn orphan_child() {
-    thread::sleep(Duration::from_millis(300));
+fn orphan_child(signal_pid1: bool) -> io::Result<()> {
+    thread::sleep(Duration::from_millis(if signal_pid1 { 650 } else { 300 }));
+    if signal_pid1 {
+        kill(Pid::from_raw(1), Signal::SIGTERM).map_err(io::Error::other)?;
+    }
+    Ok(())
 }
 
 fn signal_parent_fixture() -> io::Result<()> {
@@ -322,28 +342,43 @@ fn boot_pid1() -> io::Result<()> {
     let mut orphan_parent_pid = None;
     let mut expect_orphan = flags.test_orphan;
     if flags.test_orphan {
-        let child = Command::new(INIT_BINARY)
-            .arg("--orphan-parent")
+        let mut cmd = Command::new(INIT_BINARY);
+        cmd.arg("--orphan-parent");
+        if flags.fatal_failure {
+            cmd.arg("--signal-pid1");
+        }
+        let child = cmd
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()?;
         orphan_parent_pid = Some(Pid::from_raw(child.id() as i32));
     }
+    if flags.fatal_failure {
+        // The PID 1 function really RETURNS an error after a child exists.
+        // main() must enter fatal_pid1_reaper, then reap both the known direct
+        // parent and its adopted grandchild and process their SIGTERM.
+        if let Some(pid) = orphan_parent_pid {
+            serial(&format!("VITA_I009_ORPHAN_PARENT_PID={pid}"));
+        }
+        return Err(io::Error::other("VM-only injected fatal boot_pid1 failure"));
+    }
     let mut session_pid = None;
     if let Some(attempt) = budget.allocate(Instant::now()) {
         serial(&format!("VITA_I009_SESSION_START attempt={attempt}"));
         session_pid = start_or_failsafe(flags.crash_session, flags.spawn_failure);
     }
+    let mut signal_helper_pid = None;
     if flags.spawn_failure {
         // VM-only: prove that a startup failure does not stop the reaper or
         // signal processing; orphan and signal fixtures run afterward.
-        Command::new(INIT_BINARY)
+        let helper = Command::new(INIT_BINARY)
             .arg("--signal-parent")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()?;
+        signal_helper_pid = Some(Pid::from_raw(helper.id() as i32));
     }
 
     let mut shutting_down = false;
@@ -377,17 +412,29 @@ fn boot_pid1() -> io::Result<()> {
                         } else if code == 0 {
                             serial("VITA_I006_GUEST_TALOS_SESSION_OK");
                             serial("VITA_I007_DEFAULT_TALOS_EXIT_OK");
+                        } else if stopping.load(Ordering::Relaxed) {
+                            serial("VITA_I009_RESTART_ABORTED_SHUTDOWN");
                         } else if let Some(attempt) = budget.allocate(Instant::now()) {
                             serial(&format!("VITA_I009_SESSION_RESTART attempt={attempt} exit={code}"));
                             thread::sleep(Duration::from_millis(120));
-                            serial(&format!("VITA_I009_SESSION_START attempt={attempt}"));
-                            session_pid = start_or_failsafe(flags.crash_session, false);
+                            // A stop can arrive DURING the retry backoff.
+                            // Never start one more Talos session after SIGTERM.
+                            if stopping.load(Ordering::Relaxed) {
+                                serial("VITA_I009_RESTART_ABORTED_SHUTDOWN");
+                            } else {
+                                serial(&format!("VITA_I009_SESSION_START attempt={attempt}"));
+                                session_pid = start_or_failsafe(flags.crash_session, false);
+                            }
                         } else {
                             serial(&format!("VITA_I009_CRASH_BUDGET_EXHAUSTED attempts={MAX_LAUNCHES}"));
                             serial("VITA_I009_FAILSAFE_NO_ROOT_SHELL");
                         }
                     } else if Some(pid) == orphan_parent_pid {
                         orphan_parent_pid = None;
+                    } else if Some(pid) == signal_helper_pid {
+                        // Explicitly exclude this direct PID from adopted-child
+                        // evidence even if it exits before the orphan does.
+                        signal_helper_pid = None;
                     } else if expect_orphan {
                         serial(&format!("VITA_I009_ORPHAN_REAPED_OK pid={pid}"));
                         expect_orphan = false;
@@ -400,6 +447,8 @@ fn boot_pid1() -> io::Result<()> {
                         serial(&format!("VITA_I009_SESSION_SIGNALLED signal={sig}"));
                         if shutting_down {
                             serial("VITA_I009_SHUTDOWN_SESSION_REAPED");
+                        } else if stopping.load(Ordering::Relaxed) {
+                            serial("VITA_I009_RESTART_ABORTED_SHUTDOWN");
                         } else if let Some(attempt) = budget.allocate(Instant::now()) {
                             serial(&format!("VITA_I009_SESSION_START attempt={attempt}"));
                             session_pid = start_or_failsafe(flags.crash_session, false);
@@ -425,8 +474,8 @@ fn main() {
     let result = match args.get(1).map(String::as_str) {
         None => boot_pid1(),
         Some("--session-child") => session_child(args.get(2).is_some_and(|s| s == "--fixture-crash")),
-        Some("--orphan-parent") => orphan_parent(),
-        Some("--orphan-child") => { orphan_child(); Ok(()) },
+        Some("--orphan-parent") => orphan_parent(args.get(2).is_some_and(|s| s == "--signal-pid1")),
+        Some("--orphan-child") => orphan_child(args.get(2).is_some_and(|s| s == "--signal-pid1")),
         Some("--signal-parent") => signal_parent_fixture(),
         _ => Err(io::Error::other("unsupported Vita init mode")),
     };
@@ -447,12 +496,15 @@ mod tests {
     fn boot_options_reject_recovery_and_ambiguous_fixture() {
         assert_eq!(parse_boot_options("console=ttyS0").unwrap(), Fixture::default());
         assert_eq!(parse_boot_options("vita.i009.test_crash=1 vita.i009.test_orphan=1").unwrap(),
-            Fixture { crash_session: true, test_orphan: true, spawn_failure: false });
+            Fixture { crash_session: true, test_orphan: true, spawn_failure: false, fatal_failure: false });
         for line in ["vita.recovery=1", "vita.recovery=yes", "vita.recovery=1 vita.recovery=0",
             "vita.i009.test_crash=2", "vita.i009.test_crash=1 vita.i009.test_crash=1",
             "vita.i009.test_orphan=1 vita.i009.test_orphan=0",
             "vita.i009.test_spawn_failure=0",
-            "vita.i009.test_spawn_failure=1 vita.i009.test_spawn_failure=1"] {
+            "vita.i009.test_spawn_failure=1 vita.i009.test_spawn_failure=1",
+            "vita.i009.test_fatal=0",
+            "vita.i009.test_fatal=1",
+            "vita.i009.test_orphan=1 vita.i009.test_fatal=1 vita.i009.test_fatal=1"] {
             assert!(parse_boot_options(line).is_err(), "{line}");
         }
     }
@@ -461,7 +513,15 @@ mod tests {
     fn startup_failure_is_explicitly_fixture_gated() {
         assert_eq!(
             parse_boot_options("vita.i009.test_orphan=1 vita.i009.test_spawn_failure=1").unwrap(),
-            Fixture { crash_session: false, test_orphan: true, spawn_failure: true }
+            Fixture { crash_session: false, test_orphan: true, spawn_failure: true, fatal_failure: false }
+        );
+    }
+
+    #[test]
+    fn fatal_failure_requires_an_adopted_grandchild() {
+        assert_eq!(
+            parse_boot_options("vita.i009.test_orphan=1 vita.i009.test_fatal=1").unwrap(),
+            Fixture { crash_session: false, test_orphan: true, spawn_failure: false, fatal_failure: true }
         );
     }
 
