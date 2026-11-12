@@ -10,6 +10,7 @@ use nix::unistd::{Gid, Pid, Uid, chown, geteuid, setsid};
 use signal_hook::{consts::signal::{SIGINT, SIGTERM}, flag};
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
+use std::os::unix::fs::MetadataExt;
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
@@ -116,6 +117,23 @@ fn mount_runtime() -> io::Result<()> {
         }
     }
     serial("VITA_I007_RUNTIME_MOUNTS_READY proc=proc sys=sysfs run=tmpfs tmp=tmpfs");
+    Ok(())
+}
+
+/// The disposable initramfs archive must never preserve host-user ownership.
+/// Otherwise UID 1000 could mutate trusted OS files before or after the
+/// session starts. This validates Linux's *actual* guest inode ownership.
+fn verify_rootfs_ownership() -> io::Result<()> {
+    for path in ["/init", "/vita", SESSION_BINARY, "/dev"] {
+        let metadata = fs::metadata(path)?;
+        if metadata.uid() != 0 || metadata.gid() != 0 || metadata.mode() & 0o022 != 0 {
+            return Err(io::Error::other(format!(
+                "unsafe rootfs ownership/permissions at {path}: uid={} gid={} mode={:o}",
+                metadata.uid(), metadata.gid(), metadata.mode() & 0o7777
+            )));
+        }
+    }
+    serial("VITA_I009_ROOTFS_OWNER_OK uid=0 gid=0");
     Ok(())
 }
 
@@ -332,6 +350,7 @@ fn boot_pid1() -> io::Result<()> {
     // /proc must be mounted before reading the kernel command line.
     mount_runtime()?;
     let flags = parse_boot_options(&fs::read_to_string("/proc/cmdline")?)?;
+    verify_rootfs_ownership()?;
     configure_fixture_tty()?;
     serial("VITA_I009_PID1_MINIMAL_INIT_READY");
 

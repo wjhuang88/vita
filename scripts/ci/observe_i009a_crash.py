@@ -14,6 +14,19 @@ SUCCESS = "VITA_I009_CRASH_BUDGET_EXHAUSTED attempts=3"
 FAILSAFE = "VITA_I009_FAILSAFE_NO_ROOT_SHELL"
 
 
+def validate_guest_error(output: str, mode: str) -> None:
+    # A serial chunk may end within the marker itself. Only react once the
+    # exact delimiter including ':' is present; partial markers are not errors.
+    marker = "VITA_I006_GUEST_SESSION_ERROR:"
+    if marker not in output:
+        return
+    if mode != "fatal":
+        raise RuntimeError("Linux init failure\n" + output[-2000:])
+    tail = output.split(marker, 1)[1]
+    if "\n" in tail and "VM-only injected fatal boot_pid1 failure" not in tail.split("\n", 1)[0]:
+        raise RuntimeError("unexpected fatal boot error: " + tail[:300])
+
+
 def run(iso: str, log_dir: str, timeout: int, mode: str = "crash") -> None:
     iso_path = Path(iso).resolve(strict=True)
     if not iso_path.is_file() or iso_path.stat().st_size == 0:
@@ -59,14 +72,7 @@ def run(iso: str, log_dir: str, timeout: int, mode: str = "crash") -> None:
                     if len(data) > 2_000_000:
                         raise RuntimeError("serial log exceeds 2 MiB bound")
                     output = data.decode("utf-8", errors="replace").replace("\r", "")
-                    if "VITA_I006_GUEST_SESSION_ERROR" in output:
-                        if mode != "fatal":
-                            raise RuntimeError("Linux init failure\n" + output[-2000:])
-                        # Only the explicitly injected fatal error is accepted.
-                        # Do not reject a partially received serial line.
-                        tail = output.split("VITA_I006_GUEST_SESSION_ERROR:", 1)[1]
-                        if "\n" in tail and "VM-only injected fatal boot_pid1 failure" not in tail.split("\n", 1)[0]:
-                            raise RuntimeError("unexpected fatal boot error: " + tail[:300])
+                    validate_guest_error(output, mode)
                     if "VITA_I007_RECOVERY_READY" in output or "vita> " in output:
                         raise RuntimeError("crash fixture unexpectedly opened a session/recovery")
                     if mode == "fatal":

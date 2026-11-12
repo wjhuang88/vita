@@ -7,6 +7,7 @@ on:
       - "prototypes/vita-init/**"
       - "scripts/ci/validate_i009a_init_lifecycle.sh"
       - "scripts/ci/observe_i009a_crash.py"
+      - "scripts/ci/test_i009a_observer.py"
       - "scripts/ci/observe_i006_guest_session.py"
       - "prototypes/interaction-runtime/**"
       - "docs/iterations/I009a-init-lifecycle.md"
@@ -32,6 +33,7 @@ jobs:
         run: |
           bash -n scripts/ci/validate_i009a_init_lifecycle.sh
           python3 -m py_compile scripts/ci/observe_i009a_crash.py scripts/ci/observe_i006_guest_session.py
+          python3 -m unittest discover -s scripts/ci -p test_i009a_observer.py -v
       - name: Boot real ISO under BIOS and UEFI; test orphan and crash containment
         run: bash scripts/ci/validate_i009a_init_lifecycle.sh
       - name: Preserve bounded guest evidence only (no release ISO)

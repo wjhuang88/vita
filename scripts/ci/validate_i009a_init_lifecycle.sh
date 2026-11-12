@@ -64,7 +64,7 @@ sudo mknod -m 0600 "$WORK_DIR/root/dev/ttyS0" c 4 64
 sudo mknod -m 0666 "$WORK_DIR/root/dev/null" c 1 3
 (
   cd "$WORK_DIR/root"
-  find . -print0 | cpio --null -o --format=newc 2>"$LOG_DIR/cpio.log" \
+  find . -print0 | cpio --null -o --format=newc --owner=0:0 2>"$LOG_DIR/cpio.log" \
     | gzip -9 >"$WORK_DIR/vita-guest-initramfs.cpio.gz"
 )
 [[ -s "$WORK_DIR/vita-guest-initramfs.cpio.gz" ]] || fail "initramfs generation failed"
@@ -109,7 +109,7 @@ for mode in bios uefi; do
   if grep -Eq 'VITA_I007_RECOVERY_READY|VITA_I006_GUEST_SESSION_ERROR:' "$LOG_DIR/$mode/guest-serial.log"; then
     fail "unexpected recovery or init error under $mode"
   fi
-  for marker in VITA_I009_PID1_MINIMAL_INIT_READY VITA_I009_TALOS_UID=1000 VITA_I009_CONTROLLING_TTY_OK VITA_I009_ORPHAN_REAPED_OK; do
+  for marker in VITA_I009_ROOTFS_OWNER_OK VITA_I009_PID1_MINIMAL_INIT_READY VITA_I009_TALOS_UID=1000 VITA_I009_CONTROLLING_TTY_OK VITA_I009_ORPHAN_REAPED_OK; do
     grep -Fq "$marker" "$LOG_DIR/$mode/guest-serial.log" || fail "missing $marker under $mode"
   done
   echo "VITA_I009A_ISO_GUEST_TALOS_OK mode=$mode"

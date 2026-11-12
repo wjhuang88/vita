@@ -60,3 +60,12 @@ Follow-up changes:
 - Check for pending stop before retry-budget allocation and again after restart backoff; do not launch an additional Talos session once shutdown is requested.
 
 This is still a **VM-only engineering candidate**. Final exact-head CI, third AI re-review and human/manual approval gates remain **PENDING** until verified. Do not close story C or declare product init complete.
+
+## Independent AI review round 3 — ownership / read-boundary hardening (2026-11-12)
+
+[Third independent Copilot review](https://github.com/wjhuang88/vita/pull/14) confirmed the signal-helper PID fix and the retry/shutdown guard. Its remaining substantive findings:
+- **HIGH:** initramfs `cpio` previously retained the build host's UID/GID; on a UID 1000 host the non-root session could own system binaries or `/dev`. **Fix:** use `cpio --owner=0:0` and assert actual guest inodes for `/init`, `/vita`, Talos executable and `/dev` are root-owned and not group/other writable *before* setting the dedicated serial device owner.
+- **MEDIUM:** a serial chunk ending before the colon in `VITA_I006_GUEST_SESSION_ERROR:` could trigger an indexing error. **Fix:** match the complete delimiter, add host-side unit tests for split-message boundaries.
+- The earlier fatal fallback fixture executed on [I009a CI 43253474750](https://github.com/wjhuang88/vita/actions/runs/43253474750) and emitted `VITA_I009A_FATAL_BOOT_REAPER_VM_OK parent=442 reaped=[442, 443]` (two distinct reaped child PIDs) plus shutdown-signal evidence.
+
+After these changes the **new exact-head CI and independent AI re-review remain PENDING**. This prototype is never a shipping recovery or physical USB approval.
