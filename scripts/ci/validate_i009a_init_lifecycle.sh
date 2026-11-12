@@ -100,7 +100,8 @@ for mode in bios uefi; do
   echo "[I009a] Boot generated ISO through $mode firmware into actual guest Talos session"
   python3 "$ROOT_DIR/scripts/ci/observe_i006_guest_session.py" \
     --iso "$VITA_ISO" --firmware "$mode" --log-dir "$LOG_DIR/$mode" \
-    --timeout 210 --final-marker VITA_I007_DEFAULT_TALOS_EXIT_OK
+    --timeout 210 --final-marker VITA_I007_DEFAULT_TALOS_EXIT_OK \
+    --required-marker VITA_I009_ORPHAN_REAPED_OK
   grep -Fq 'VITA_I007_RUNTIME_MOUNTS_READY' "$LOG_DIR/$mode/guest-serial.log" \
     || fail "missing runtime mount proof under $mode"
   grep -Fq 'VITA_I007_DEFAULT_TALOS_EXIT_OK' "$LOG_DIR/$mode/guest-serial.log" \
@@ -115,6 +116,13 @@ for mode in bios uefi; do
 done
 echo "VITA_I009A_LINUX_TALOS_ISO_VM_OK"
 
+echo "[I009a] Prove Ctrl+C preserves Talos launcher and exits cleanly"
+python3 "$ROOT_DIR/scripts/ci/observe_i006_guest_session.py" \
+  --iso "$VITA_ISO" --firmware bios --log-dir "$LOG_DIR/ctrl-c" \
+  --timeout 180 --ctrl-c-exit
+grep -Fq VITA_I007_DEFAULT_TALOS_EXIT_OK "$LOG_DIR/ctrl-c/guest-serial.log" \
+  || fail "Ctrl+C did not produce a clean Talos exit"
+
 echo "[I009a] Prove bounded failure without enabling a root recovery shell"
 sed -i 's/vita.i009.test_orphan=1/vita.i009.test_crash=1/' "$ISO_TREE/boot/grub/grub.cfg"
 CRASH_ISO="$WORK_DIR/vita-crash-engineering.iso"
@@ -124,4 +132,13 @@ python3 "$ROOT_DIR/scripts/ci/observe_i009a_crash.py" --iso "$CRASH_ISO" \
   --log-dir "$LOG_DIR/crash" --timeout 150
 grep -Fq VITA_I009_FAILSAFE_NO_ROOT_SHELL "$LOG_DIR/crash/guest-serial.log" \
   || fail "fail-closed crash proof missing"
+echo "[I009a] Inject a session-spawn failure after creating an orphan and a signal sender"
+sed -i 's/vita.i009.test_crash=1/vita.i009.test_orphan=1 vita.i009.test_spawn_failure=1/' "$ISO_TREE/boot/grub/grub.cfg"
+SPAWN_FAIL_ISO="$WORK_DIR/vita-spawn-failure-engineering.iso"
+grub-mkrescue -o "$SPAWN_FAIL_ISO" "$ISO_TREE" >"$LOG_DIR/grub-spawn-failure.log" 2>&1 \
+  || fail "spawn-failure fixture ISO failed"
+sha256sum "$SPAWN_FAIL_ISO" >"$LOG_DIR/spawn-failure-iso.sha256"
+python3 "$ROOT_DIR/scripts/ci/observe_i009a_crash.py" --mode spawn --iso "$SPAWN_FAIL_ISO" \
+  --log-dir "$LOG_DIR/spawn-failure" --timeout 150
+
 echo "VITA_I009A_MINIMAL_INIT_LIFECYCLE_VM_OK"

@@ -28,6 +28,7 @@ def require_regular(path: str) -> str:
 def observe(
     kernel: str | None, initrd: str | None, log_dir: str, timeout: int,
     final_marker: str | None = None, iso: str | None = None, firmware: str = "bios",
+    required_markers: tuple[str, ...] = (), ctrl_c_exit: bool = False,
 ) -> None:
     # I006: direct-kernel path remains intact. I008: genuine ISO boot.
     if iso is None:
@@ -116,6 +117,31 @@ def observe(
                         if "\n" in tail:
                             details = tail.split("\n", 1)[0].strip()
                             raise RuntimeError(f"Linux guest init failed: {details}")
+                    if ctrl_c_exit:
+                        # I009a: the terminal driver must deliver SIGINT to the
+                        # foreground group; Talos exits cleanly and its parent
+                        # launcher must not count Ctrl+C as a crash.
+                        if step == 0 and "VITA_I009_CONTROLLING_TTY_OK" in output and "vita> " in output:
+                            client.sendall(b"\x03")
+                            step = 1
+                        elif step == 1 and "VITA_I007_DEFAULT_TALOS_EXIT_OK" in output:
+                            expected_interrupt = [
+                                "VITA_I009_TALOS_UID=1000",
+                                "VITA_I009_CONTROLLING_TTY_OK",
+                                "[exit requested]",
+                                "VITA_I009_TALOS_NATIVE_EXIT_OK",
+                                "VITA_I006_GUEST_TALOS_SESSION_OK",
+                            ]
+                            absent = [x for x in expected_interrupt if x not in output]
+                            if absent:
+                                raise RuntimeError(f"Ctrl+C guest proof missing: {absent}")
+                            forbidden = ["VITA_I009_SESSION_RESTART", "VITA_I009_SESSION_SIGNALLED",
+                                         "VITA_I009_CRASH_BUDGET_EXHAUSTED"]
+                            if any(x in output for x in forbidden):
+                                raise RuntimeError("Ctrl+C incorrectly restarted/killed Talos launcher")
+                            print("VITA_I009A_CTRL_C_GUEST_OK", flush=True)
+                            return
+                        continue
                     if step == 0 and "VITA_I006_GUEST_PROC_READY" in output and "vita> " in output:
                         client.sendall(b"inspect\n")
                         step = 1
@@ -133,6 +159,10 @@ def observe(
                         # *before* QEMU is terminated; this avoids the race
                         # between the I006 and I007 adjacent guest markers.
                         if final_marker is not None and final_marker not in output:
+                            continue
+                        # Do not race QEMU shutdown against independent guest
+                        # orphan-reaping/late milestone markers.
+                        if any(marker not in output for marker in required_markers):
                             continue
                         expected = [
                             "VITA_I006_GUEST_PID1_OK",
@@ -169,6 +199,8 @@ def main() -> int:
     parser.add_argument("--log-dir", required=True)
     parser.add_argument("--timeout", type=int, default=140)
     parser.add_argument("--final-marker", default=None)
+    parser.add_argument("--required-marker", action="append", default=[])
+    parser.add_argument("--ctrl-c-exit", action="store_true")
     args = parser.parse_args()
     if args.iso is not None:
         if args.kernel or args.initrd:
@@ -181,6 +213,7 @@ def main() -> int:
         observe(
             args.kernel, args.initrd, args.log_dir, args.timeout,
             args.final_marker, args.iso, args.firmware,
+            tuple(args.required_marker), args.ctrl_c_exit,
         )
         return 0
     except Exception as error:

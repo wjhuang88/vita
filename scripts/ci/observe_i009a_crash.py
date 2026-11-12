@@ -13,7 +13,7 @@ SUCCESS = "VITA_I009_CRASH_BUDGET_EXHAUSTED attempts=3"
 FAILSAFE = "VITA_I009_FAILSAFE_NO_ROOT_SHELL"
 
 
-def run(iso: str, log_dir: str, timeout: int) -> None:
+def run(iso: str, log_dir: str, timeout: int, mode: str = "crash") -> None:
     iso_path = Path(iso).resolve(strict=True)
     if not iso_path.is_file() or iso_path.stat().st_size == 0:
         raise ValueError("expected a nonempty regular engineering ISO file")
@@ -62,6 +62,22 @@ def run(iso: str, log_dir: str, timeout: int) -> None:
                         raise RuntimeError("Linux init failure\n" + output[-2000:])
                     if "VITA_I007_RECOVERY_READY" in output or "vita> " in output:
                         raise RuntimeError("crash fixture unexpectedly opened a session/recovery")
+                    if mode == "spawn":
+                        # Failed session creation must preserve the main PID 1
+                        # loop: it must still reap an adopted grandchild and
+                        # process a subsequent guest-delivered SIGTERM.
+                        required = (
+                            "VITA_I009_SESSION_START_FAILED",
+                            "VITA_I009_FAILSAFE_NO_ROOT_SHELL",
+                            "VITA_I009_ORPHAN_REAPED_OK",
+                            "VITA_I009_SHUTDOWN_REQUESTED",
+                        )
+                        if all(marker in output for marker in required):
+                            if "VITA_I009_TALOS_UID=1000" in output or "VITA_I009_SESSION_RESTART" in output:
+                                raise RuntimeError("failed-start fixture spawned an unintended session")
+                            print("VITA_I009A_SPAWN_FAILURE_REAPER_VM_OK", flush=True)
+                            return
+                        continue
                     if SUCCESS in output and FAILSAFE in output:
                         starts = output.count("VITA_I009_SESSION_START attempt=")
                         crashes = output.count("VITA_I009_SIMULATED_SESSION_CRASH")
@@ -86,5 +102,6 @@ if __name__ == "__main__":
     parser.add_argument("--iso", required=True)
     parser.add_argument("--log-dir", required=True)
     parser.add_argument("--timeout", type=int, default=150)
+    parser.add_argument("--mode", choices=("crash", "spawn"), default="crash")
     args = parser.parse_args()
-    run(args.iso, args.log_dir, args.timeout)
+    run(args.iso, args.log_dir, args.timeout, args.mode)

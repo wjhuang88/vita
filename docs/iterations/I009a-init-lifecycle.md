@@ -36,3 +36,13 @@ No finished read-only rootfs, persistent USB config, Dinit/Finit final decision,
 - Final follow-up commit removes one unused Rust import, ensures shutdown signal state is processed once, and records this evidence. **Its own exact-head CI is PENDING**; keep PR Draft until repeated real guest/provenance and regressions pass.
 
 **Boundary:** this is a dedicated disposable VM engineering candidate only; it is not the final Vita init design, immutable Linux rootfs, product-grade session/account policy, complete shutdown, privileged Broker or recoverable physical USB OS. All [I009a human reviews](../validation/I009a-HUMAN-ACCEPTANCE.md) remain unchecked.
+
+## Independent AI review round 1 (2026-11-12)
+
+A separately executed [GitHub Copilot Code Review](https://github.com/wjhuang88/vita/actions/runs/43249443015) on source `5b40d3848c5cde64a897e677e83c2378fe002b78` returned **Changes recommended** with three unresolved findings: (HIGH) PID 1's sleep-only fatal path stopped reaping/signals, (MEDIUM) foreground launcher Ctrl+C caused false session crashes, and (MEDIUM) normal QEMU observer raced the separate orphan-reaping marker. This follows the single-maintainer delegation decision in [PR #14](https://github.com/wjhuang88/vita/pull/14).
+
+Follow-up fix scope:
+- Preserve a reaping/signals loop on failure; no restart after a session spawn error, include a guest-injected spawn failure followed by orphan reaping and PID 1 SIGTERM.
+- Catch SIGINT in the session launcher (not Talos) so native Talos Ctrl+C handling remains functional; add BIOS ISO Ctrl+C guest proof.
+- Require the orphan marker before QEMU observer exit; eliminate the flaky late-marker race.
+- **All revised exact-head CI and AI re-review remain PENDING** until independently checked, and all human/legal/physical gates remain unapproved.

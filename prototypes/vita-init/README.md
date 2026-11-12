@@ -9,3 +9,5 @@ This crate tests whether **a small Rust PID 1** is viable for Vita's small-and-c
 - Does not yet implement full shutdown poweroff, independent authenticated recovery, initramfs switch_root, device events or product-grade privilege policy; explicit future human/VM gates remain.
 
 CI entry: \`bash scripts/ci/validate_i009a_init_lifecycle.sh\`. Retains serial logs and hashes but does not release experimental ISO.
+
+Independent AI code review found fatal-path reaping, Ctrl+C and late orphan-marker gaps on the first head. The follow-up branch adds a non-restarting safe reaper path, launcher-only SIGINT handling, and dedicated BIOS guest scenarios for Ctrl+C and injected session-spawn failure. These are **pending exact-head CI and AI re-review**, not evidence of a production init.
