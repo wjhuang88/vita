@@ -1,0 +1,42 @@
+name: I009b0 Immutable Vita System Tree
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/i009b0-immutable-system.yml"
+      - "scripts/ci/validate_i009b0_immutable_system.sh"
+      - "prototypes/vita-init/**"
+      - "prototypes/interaction-runtime/**"
+      - "scripts/ci/observe_i006_guest_session.py"
+      - "docs/iterations/I009b0-immutable-vita-system.md"
+      - "docs/backlog/active/VITA-001-C-live-os.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/validate_project_governance.sh .
+
+  immutable-vita-guest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate script and contract
+        run: |
+          bash -n scripts/ci/validate_i009b0_immutable_system.sh
+          python3 -m py_compile scripts/ci/observe_i006_guest_session.py
+      - name: Boot real Vita ISO in BIOS and UEFI and validate system immutability
+        run: bash scripts/ci/validate_i009b0_immutable_system.sh
+      - name: Retain guest and hash evidence only, never release image
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i009b0-immutable-vita-evidence
+          path: i009b0-system-logs/
+          if-no-files-found: warn

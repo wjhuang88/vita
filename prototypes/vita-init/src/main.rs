@@ -134,6 +134,53 @@ fn mount_runtime() -> io::Result<()> {
     Ok(())
 }
 
+/// Parse Linux mountinfo (ID parent device root mountpoint options ...) for
+/// an actual read-only mount. Directory permissions alone are insufficient.
+fn has_readonly_mount(mountinfo: &str, path: &str) -> bool {
+    mountinfo.lines().any(|line| {
+        let fields: Vec<_> = line.split_ascii_whitespace().collect();
+        fields.len() > 6
+            && fields[4] == path
+            && fields[5].split(',').any(|option| option == "ro")
+    })
+}
+
+fn reject_system_write() -> io::Result<()> {
+    let probe = "/vita/.vita-i009b0-write-probe";
+    match OpenOptions::new().write(true).create_new(true).open(probe) {
+        Err(error) if error.raw_os_error() == Some(Errno::EROFS as i32) => Ok(()),
+        Ok(_) => {
+            // Avoid leaving a writable probe behind if the isolation failed.
+            let _ = fs::remove_file(probe);
+            Err(io::Error::other("security violation: /vita write was allowed"))
+        }
+        Err(error) => Err(io::Error::other(format!(
+            "expected EROFS from immutable /vita, got {error}"
+        ))),
+    }
+}
+
+fn mount_immutable_vita() -> io::Result<()> {
+    // The initramfs root itself is still RAM-backed and mutable by PID1.
+    // This first bounded I009b proof protects the application subtree, NOT
+    // a product read-only squashfs root or secure boot.
+    mount(Some("/vita"), "/vita", None::<&str>, MsFlags::MS_BIND, None::<&str>)
+        .map_err(|e| io::Error::other(format!("bind /vita failed: {e}")))?;
+    mount(
+        None::<&str>, "/vita", None::<&str>,
+        MsFlags::MS_BIND | MsFlags::MS_REMOUNT | MsFlags::MS_RDONLY
+            | MsFlags::MS_NOSUID | MsFlags::MS_NODEV,
+        None::<&str>,
+    ).map_err(|e| io::Error::other(format!("readonly remount /vita failed: {e}")))?;
+    let mounts = fs::read_to_string("/proc/self/mountinfo")?;
+    if !has_readonly_mount(&mounts, "/vita") {
+        return Err(io::Error::other("kernel mountinfo lacks immutable /vita"));
+    }
+    reject_system_write()?;
+    serial("VITA_I009B0_SYSTEM_MOUNT_READONLY_OK path=/vita result=EROFS");
+    Ok(())
+}
+
 /// The disposable initramfs archive must never preserve host-user ownership.
 /// Otherwise UID 1000 could mutate trusted OS files before or after the
 /// session starts. This validates Linux's *actual* guest inode ownership.
@@ -182,6 +229,16 @@ fn session_child(crash: bool) -> io::Result<()> {
     if geteuid().as_raw() != VITA_UID {
         return Err(io::Error::other("Talos session launcher did not drop root privileges"));
     }
+    // Independently verify the runtime state from the unprivileged session,
+    // not only from root PID1. A permission-denied error is not sufficient.
+    reject_system_write()?;
+    serial("VITA_I009B0_NONROOT_SYSTEM_WRITE_DENIED uid=1000 errno=EROFS");
+    fs::write("/tmp/.vita-i009b0-volatile-probe", b"vita-i009b0")?;
+    if fs::read("/tmp/.vita-i009b0-volatile-probe")? != b"vita-i009b0" {
+        return Err(io::Error::other("volatile /tmp read/write mismatch"));
+    }
+    fs::remove_file("/tmp/.vita-i009b0-volatile-probe")?;
+    serial("VITA_I009B0_VOLATILE_TMP_OK uid=1000");
     if crash {
         serial("VITA_I009_SIMULATED_SESSION_CRASH");
         std::process::exit(42);
@@ -367,6 +424,7 @@ fn boot_pid1() -> io::Result<()> {
     mount_runtime()?;
     let flags = parse_boot_options(&fs::read_to_string("/proc/cmdline")?)?;
     verify_rootfs_ownership()?;
+    mount_immutable_vita()?;
     configure_fixture_tty()?;
     serial("VITA_I009_PID1_MINIMAL_INIT_READY");
 
@@ -566,6 +624,21 @@ mod tests {
             parse_boot_options("vita.i009.test_orphan=1 vita.i009.test_fatal=1").unwrap(),
             Fixture { crash_session: false, test_orphan: true, spawn_failure: false, fatal_failure: true, test_active_shutdown: false }
         );
+    }
+
+    #[test]
+    fn mountinfo_parser_requires_actual_ro_vita_mount() {
+        let info = "21 1 0:18 / / rw,relatime - rootfs rootfs rw\n\
+                    31 21 0:18 /vita /vita ro,nosuid,nodev,relatime - rootfs rootfs rw\n\
+                    32 21 0:35 / /tmp rw,nosuid,nodev - tmpfs tmpfs rw\n";
+        assert!(has_readonly_mount(info, "/vita"));
+        assert!(!has_readonly_mount(info, "/tmp"));
+        assert!(!has_readonly_mount(info, "/"));
+        assert!(!has_readonly_mount(
+            "31 21 0:18 /vita /vita rw,nosuid - rootfs rootfs rw",
+            "/vita"
+        ));
+        assert!(!has_readonly_mount(info, "/sys"));
     }
 
     #[test]
