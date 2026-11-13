@@ -24,7 +24,7 @@ Build a portable USB system that combines multi-ISO boot with an Agent-native Li
 - Remove only artifacts made obsolete by the current change.
 - Prefer explicit typed capability contracts over shell-string construction for OS operations.
 - Evaluate existing Talos/Rust crates and native kernel interfaces before adding subprocess dependencies; inventory shipped non-Rust tools and justify exceptions.
-- Treat boot code, storage operations and privilege transitions as high-risk surfaces requiring focused tests and review.
+- Treat boot code, storage operations and privilege transitions as high-risk surfaces requiring focused tests and review. For single-maintainer independent AI review, follow the separate-execution and exact-head evidence policy in `docs/sop/PAIRING-WORKFLOW.md`; AI review never substitutes for human product/security/release approval.
 
 ## Git Rules
 - Work on a feature branch for non-trivial changes; inspect branch/worktree state before editing.

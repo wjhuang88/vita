@@ -1,6 +1,6 @@
 # I009a — Minimal independent PID 1 and Agent session lifecycle
 
-Status: Review (original guest and regression CI passed; follow-up exact-head housekeeping CI pending)
+Status: Complete (VM-only engineering slice; product/physical/manual acceptance pending)
 Published: 2026-11-07
 Story: VITA-001-C (Active); [Issue #12](https://github.com/wjhuang88/vita/issues/12)
 Requires: I008 merged as `f24c1498` after all nine exact-head CI checks.
@@ -73,3 +73,13 @@ After these changes the **new exact-head CI and independent AI re-review remain 
 ## Independent AI review round 4 — live-session shutdown gate (2026-11-12)
 
 Fourth separate [Copilot Code Review](https://github.com/wjhuang88/vita/pull/14) confirmed the cpio `root:root` ownership isolation fix and arbitrary serial-read boundary fix. It flagged a **previously untested live-session shutdown** path for closer assessment: PID 1 receives SIGTERM while Talos owns the controlling TTY, and must not respawn or abandon its child. A dedicated **BIOS guest ISO** now starts a real non-root Talos console, delivers SIGTERM to PID 1 via a guest-local helper while the session is active, and requires `VITA_I009_SHUTDOWN_REQUESTED` plus `VITA_I009_SHUTDOWN_SESSION_REAPED` and **exactly one session start**. Do not claim this gate passed or select production Rust init before exact-head CI plus independent AI re-review. I009b still owns real shutdown/reboot and product-grade device/rootfs work.
+
+## Final I009a closure evidence — 2026-11-12
+
+The bounded VM-only engineering slice was merged in [PR #14](https://github.com/wjhuang88/vita/pull/14). Exact reviewed code HEAD: `b6ead5d050e79bea7ce11221a1093882a872951e`; main squash merge: `40703ff942cd1eeb8bf051b62d9cbfcc97c9d60a`.
+
+- **12/12 exact-head GitHub checks successful**, including 11 workflow/regression jobs and the separately executed Copilot code-review check. Copilot execution success is *not* a human approval or proof of zero risk: read its real PR reports. Independent reviewer findings were resolved with code/guest evidence and all inline threads were closed.
+- [Final I009a guest run 43256546630](https://github.com/wjhuang88/vita/actions/runs/43256546630) passed 6 Rust unit tests and BIOS/UEFI **real Vita ISO** boot to a non-root controlling-TTY Talos session. Evidence markers include `VITA_I009A_ISO_GUEST_TALOS_OK mode=bios` and `mode=uefi`, `VITA_I009A_CTRL_C_GUEST_OK`, `VITA_I009A_CRASH_POLICY_VM_OK starts=3 crashes=3`, `VITA_I009A_SPAWN_FAILURE_REAPER_VM_OK`, `VITA_I009A_FATAL_BOOT_REAPER_VM_OK parent=440 reaped=[440, 441]`, `VITA_I009A_ACTIVE_SESSION_SHUTDOWN_VM_OK`, `VITA_I009A_MINIMAL_INIT_LIFECYCLE_VM_OK`.
+- The guest also checks `VITA_I009_ROOTFS_OWNER_OK` for root-owned, non-group/world-writable critical image inodes. Tests cover adopted grandchild reaping, error/fatal PID1 fallback, Ctrl+C handling and SIGTERM shutdown of a running Talos session without respawn. Old I001/I005/I006/I007/I008 regression checks all passed on the same head.
+- In independent Copilot review rounds, defects in fatal-path reaping, Ctrl+C, orphan proof race, child-PID identity, shutdown race, initramfs ownership and socket-marker framing were addressed. Latest reviewer noted risk of high-privilege PID1 code and the need for *separate human product/security examination*.
+- **No product acceptance:** [I009a manual checklist](../validation/I009a-HUMAN-ACCEPTANCE.md) remains unchecked. Final Rust PID1 vs Dinit/Finit choice, full immutable rootfs/device services, real poweroff/reboot, physical USB, firmware, GPL/SBOM, broker and authenticated recovery remain I009b/I009c/I009d work. Do not close Story C or Issue #12.
