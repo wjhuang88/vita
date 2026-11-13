@@ -62,10 +62,16 @@ Source head `11ba5b08` passed [I008 CI 42180463023](https://github.com/wjhuang88
 
 [ADR-0008](../../decisions/ADR-0008-linux-init-service-supervision.md) and the [Vita OS design contract](../../reference/VITA-OS-DESIGN.md) establish a **small yet functionally complete**, Rust-first Agent-native Linux product. PID 1, non-root Talos session and privileged Broker are separate failure/trust domains. Alpine/musl remains the experimental base; **Rust PID 1 vs Dinit/Finit remains an open comparative decision**; do not declare Debian/systemd a default. ChromeOS is a layering and immutable-system reference only. [I009a](../../iterations/I009a-init-lifecycle.md) is the next bounded VM-only slice. I008 was merged in [PR #11](https://github.com/wjhuang88/vita/pull/11) after all nine exact-head checks passed. This does not close Story C or human/security/physical/Ventoy gates.
 
-## I009a code implementation — review-in-progress
+## I009a historical development record (superseded by final closure below)
 
 Separate minimal Rust PID 1 candidate with non-root session/controlling TTY, bounded crash budget, orphan reaping, and real ISO firmware guest tests is proposed by the I009a PR. **No successful I009a guest proof is claimed until exact-head CI completes.** The decision between Rust PID 1 and Dinit/Finit stays OPEN, and full rootfs/recovery/physical gates remain unchanged.
 
-## I009a VM proof (review; final exact-head CI pending)
+## I009a historical original-head proof (final CI later passed; see closure below)
 
 Initial source `333e8da54c59bbd13750726ccc8782c2a7ae99b6` passed [I009a CI 42373604370](https://github.com/wjhuang88/vita/actions/runs/42373604370), including BIOS/UEFI ISO Talos Tool execution, non-root controlling TTY, orphan reaping and bounded crash fail-safe; all I001/I005/I006/I007/I008 original-head regressions passed. The evidence and security boundary are in [I009a](../../iterations/I009a-init-lifecycle.md). A small final source/documentation follow-up requires repeated exact-head CI before merging PR #14. Story C remains Active; final PID1 choice and product-level rootfs/recovery open.
+
+## I009a VM engineering slice complete (2026-11-12)
+
+[I009a PR #14](https://github.com/wjhuang88/vita/pull/14) merged as `40703ff942cd1eeb8bf051b62d9cbfcc97c9d60a`, after multiple independent Copilot review rounds, resolved inline issues and 12/12 final-head checks. [Final I009a CI](https://github.com/wjhuang88/vita/actions/runs/43256546630) verifies the real BIOS/UEFI ISO, non-root Talos controlling TTY, child/orphan/fatal reaping, bounded crash policy, root-owned system image, Ctrl+C and live-session SIGTERM shutdown with no respawn. The single-maintainer AI review policy is now documented in [PAIRING-WORKFLOW](../../sop/PAIRING-WORKFLOW.md).
+
+**Story C remains Active.** This closes only I009a's disposable diskless VM proof. I009b rootfs/services/device/init benchmarking and selection, I009c typed OS capability/broker, and I009d recovery/firmware/hardware/release are not done. Independent AI code review is not physical/security or release approval.
