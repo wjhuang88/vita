@@ -62,3 +62,7 @@ Reject/replace a candidate if it fails PID 1 process supervision, independent Ta
 - Linux initramfs and PID 1 boot behavior: https://www.kernel.org/doc/html/latest/filesystems/ramfs-rootfs-initramfs.html
 - Alpine minimal Linux: https://www.alpinelinux.org/about/
 - Dinit / Finit / OpenRC: https://davmac.org/projects/dinit/ ; https://troglobit.com/finit/ ; https://github.com/OpenRC/openrc
+
+## Dated implementation evidence — 2026-11-14 (does not change the accepted decision)
+
+[I009a PR #14](https://github.com/wjhuang88/vita/pull/14) demonstrated a minimal Rust PID1 engineering **candidate** with nonroot controlling-TTY Talos, child reaping, bounded restart and fault paths in real BIOS/UEFI ISO guests. [I009b0 PR #16](https://github.com/wjhuang88/vita/pull/16) now also demonstrates actual readonly `/vita` application mount (root + UID1000 `EROFS`) and bounded volatile scratch, with 14/14 exact final PR-head checks. **Neither proof finalizes the PID1 selection nor establishes a readonly `/` rootfs.** True rootfs, service/device lifecycle and Dinit/Finit comparison remain open. The latest implementation evidence supersedes only the dated experimental-status descriptions above; D1–D8 decisions and human safety gates are unchanged.

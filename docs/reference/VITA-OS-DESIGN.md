@@ -39,7 +39,8 @@ Firmware -> GRUB / owned Live ISO [Ventoy compatibility is independent]
 | Alpine/musl as the first engineering base | **ACCEPTED for prototypes**, reassess only with evidence |
 | Independent PID 1 / session / broker trust domains | **ACCEPTED** |
 | Rust PID 1 vs Dinit/Finit/BusyBox+OpenRC | **OPEN**, measurable I009 decision |
-| Read-only rootfs, versioned images and separated user data | **ACCEPTED target**, **NOT IMPLEMENTED** |
+| Read-only rootfs `/`, versioned images and separated user data | **ACCEPTED target**, **NOT IMPLEMENTED** (I009b0 protects only `/vita`) |
+| Read-only `/vita` application mount and bounded volatile scratch | **VERIFIED I009b0 VM-only** — PR #16; not whole-rootfs immutability |
 | BIOS/UEFI guest boot via Vita-owned ISO and Talos SDK fixture | **VERIFIED I008 VM-only** |
 | Production controlling TTY, service reaper/supervisor, drivers/hotplug | **NOT YET VERIFIED** |
 | Physical USB / Secure Boot / third-party Ventoy ISO / release | **NOT VERIFIED** |
@@ -52,3 +53,7 @@ I009a: bounded process-reaper and service/session separation with VM-only eviden
 **Do not lose the original I008 evidence**: [PR #11](https://github.com/wjhuang88/vita/pull/11) / [9 passing exact-head checks](https://github.com/wjhuang88/vita/actions/runs/42367193854). Separate [Ventoy Issue #5](https://github.com/wjhuang88/vita/issues/5) remains unresolved.
 
 Borrow from ChromeOS only its stable base, session-supervisor separation, immutable OS/writable user-state split, and rollback/failsafe approach; not the browser, board-specific partition scheme, Upstart binary or verified-firmware assumption.
+
+## Latest boot/system boundary evidence (2026-11-14)
+
+[I009b0](../iterations/I009b0-immutable-vita-system.md) confirms read-only application subtree `/vita` via root+UID1000 `EROFS` from real QEMU BIOS and OVMF UEFI ISO guests ([PR #16](https://github.com/wjhuang88/vita/pull/16), merged `a7a241c`). It does **not** validate readonly `/` or a complete Linux rootfs. See [I009b1 #17](https://github.com/wjhuang88/vita/issues/17) for the next engineering gate. All prior I009a lifecycle proof remains intact. Rust PID1 selection remains OPEN.
