@@ -66,7 +66,7 @@ Source head `11ba5b08` passed [I008 CI 42180463023](https://github.com/wjhuang88
 
 Separate minimal Rust PID 1 candidate with non-root session/controlling TTY, bounded crash budget, orphan reaping, and real ISO firmware guest tests is proposed by the I009a PR. **No successful I009a guest proof is claimed until exact-head CI completes.** The decision between Rust PID 1 and Dinit/Finit stays OPEN, and full rootfs/recovery/physical gates remain unchanged.
 
-## I009a VM proof (review; final exact-head CI pending)
+## I009a historical original-head proof (final CI later passed; see closure below)
 
 Initial source `333e8da54c59bbd13750726ccc8782c2a7ae99b6` passed [I009a CI 42373604370](https://github.com/wjhuang88/vita/actions/runs/42373604370), including BIOS/UEFI ISO Talos Tool execution, non-root controlling TTY, orphan reaping and bounded crash fail-safe; all I001/I005/I006/I007/I008 original-head regressions passed. The evidence and security boundary are in [I009a](../../iterations/I009a-init-lifecycle.md). A small final source/documentation follow-up requires repeated exact-head CI before merging PR #14. Story C remains Active; final PID1 choice and product-level rootfs/recovery open.
 
