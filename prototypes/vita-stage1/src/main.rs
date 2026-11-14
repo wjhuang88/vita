@@ -23,7 +23,7 @@ const LOOP_DEVICE: &str = "/dev/loop0";
 const NEW_ROOT: &str = "/newroot";
 // Linux loop.h LOOP_SET_FD; the only unsafe call is this fixed, early-boot
 // ioctl on an in-initramfs device inode. No user paths or untrusted args.
-const LOOP_SET_FD: nix::libc::c_ulong = 0x4c00;
+const LOOP_SET_FD: nix::libc::c_int = 0x4c00;
 
 fn serial(message: &str) {
     if let Ok(mut f) = OpenOptions::new().write(true).open("/dev/console") {
