@@ -58,7 +58,9 @@ KVER="$(find "$SRC/usr/lib/modules" -mindepth 1 -maxdepth 1 -type d -printf '%f\
 [[ "$(find "$SRC/usr/lib/modules" -mindepth 1 -maxdepth 1 -type d | wc -l)" == 1 ]] ||
   fail "ambiguous kernel module versions"
 echo "kernel_release=$KVER" >"$LOG/kernel-modules.txt"
-modprobe -d "$SRC" -S "$KVER" --show-depends loop squashfs \
+# Without --all, modprobe interprets 'squashfs' as a parameter to
+# 'loop' rather than a second requested kernel module.
+modprobe --all -d "$SRC" -S "$KVER" --show-depends loop squashfs \
   >"$LOG/modprobe-plan.txt" 2>"$LOG/modprobe-error.txt" ||
   fail "pinned module dependencies for squashfs/loop could not be resolved"
 if grep -Eq '^(install|remove|softdep) ' "$LOG/modprobe-plan.txt"; then
