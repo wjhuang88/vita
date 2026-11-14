@@ -31,3 +31,7 @@ PENDING — commit/CI and independent-review evidence must be recorded before cl
 ## Integration note — ISO9660 vs isofs module
 
 Initial media CI failed before QEMU because the module manifest mistakenly requested `iso9660` as a **module name**, while Linux uses the `isofs` driver for the filesystem type `iso9660`. The dependency-plan request now uses `isofs`; the guest mount remains `iso9660`. No successful media guest boot is claimed until repeated exact-HEAD CI.
+
+## Independent AI review round 1 — ISO creation and lifecycle labeling
+
+The separately running Copilot reviewer caught an invalid `grub-mkrescue -V` invocation (it prints **version**, not volume ID), missing fixed volume labels on the crash/spawn/fatal/shutdown test ISOs, and an omitted direct CI dependency on the shared serial observer. The code now forwards xorriso's `-volid VITA_I009B2` via `grub-mkrescue ... -- -volid ...` for **all** six generated ISO variants; module naming uses `isofs` (mount filesystem type remains `iso9660`). The media workflow also triggers on `observe_i006_guest_session.py`. **No result is accepted until new exact-head CI and independent re-review complete.**

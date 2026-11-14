@@ -233,11 +233,13 @@ menuentry "Vita experimental SquashFS root" {
     initrd /boot/stage1.cpio.gz
 }
 GRUB
-grub_args=()
+# grub-mkrescue owns -V (version); forward the *native xorriso*
+# volume-id option after its '--' separator to every generated ISO.
+iso_label_args=()
 if [[ "$MEDIA_MODE" == 1 ]]; then
-  grub_args=(-V VITA_I009B2)
+  iso_label_args=(-- -volid VITA_I009B2)
 fi
-grub-mkrescue "${grub_args[@]}" -o "$VITA_ISO" "$ISO_TREE" >"$LOG/grub.log" 2>&1 ||
+grub-mkrescue -o "$VITA_ISO" "$ISO_TREE" "${iso_label_args[@]}" >"$LOG/grub.log" 2>&1 ||
   fail "firmware ISO build failed"
 sha256sum "$VITA_ISO" >"$LOG/vita-iso.sha256"
 stat -c %s "$VITA_ISO" >"$LOG/vita-iso.bytes"
@@ -296,7 +298,7 @@ grep -Fq VITA_I009_TALOS_NATIVE_EXIT_OK "$LOG/ctrl-c/guest-serial.log" ||
 
 sed -i 's/vita.i009.test_orphan=1/vita.i009.test_crash=1/' "$ISO_TREE/boot/grub/grub.cfg"
 CRASH_ISO="$WORK/vita-root-crash.iso"
-grub-mkrescue -o "$CRASH_ISO" "$ISO_TREE" >"$LOG/grub-crash.log" 2>&1 ||
+grub-mkrescue -o "$CRASH_ISO" "$ISO_TREE" "${iso_label_args[@]}" >"$LOG/grub-crash.log" 2>&1 ||
   fail "crash fixture ISO generation failed"
 sha256sum "$CRASH_ISO" >"$LOG/crash-iso.sha256"
 python3 "$ROOT/scripts/ci/observe_i009a_crash.py" --iso "$CRASH_ISO" \
@@ -307,7 +309,7 @@ grep -Fq 'VITA_I009_CRASH_BUDGET_EXHAUSTED attempts=3' "$LOG/crash/guest-serial.
 sed -i 's/vita.i009.test_crash=1/vita.i009.test_orphan=1 vita.i009.test_spawn_failure=1/' \
   "$ISO_TREE/boot/grub/grub.cfg"
 SPAWN_ISO="$WORK/vita-root-spawn-failure.iso"
-grub-mkrescue -o "$SPAWN_ISO" "$ISO_TREE" >"$LOG/grub-spawn.log" 2>&1 ||
+grub-mkrescue -o "$SPAWN_ISO" "$ISO_TREE" "${iso_label_args[@]}" >"$LOG/grub-spawn.log" 2>&1 ||
   fail "spawn failure fixture build failed"
 sha256sum "$SPAWN_ISO" >"$LOG/spawn-iso.sha256"
 python3 "$ROOT/scripts/ci/observe_i009a_crash.py" --mode spawn --iso "$SPAWN_ISO" \
@@ -316,7 +318,7 @@ python3 "$ROOT/scripts/ci/observe_i009a_crash.py" --mode spawn --iso "$SPAWN_ISO
 sed -i 's/vita.i009.test_spawn_failure=1/vita.i009.test_fatal=1/' \
   "$ISO_TREE/boot/grub/grub.cfg"
 FATAL_ISO="$WORK/vita-root-fatal-fallback.iso"
-grub-mkrescue -o "$FATAL_ISO" "$ISO_TREE" >"$LOG/grub-fatal.log" 2>&1 ||
+grub-mkrescue -o "$FATAL_ISO" "$ISO_TREE" "${iso_label_args[@]}" >"$LOG/grub-fatal.log" 2>&1 ||
   fail "fatal reaper fixture ISO build failed"
 sha256sum "$FATAL_ISO" >"$LOG/fatal-iso.sha256"
 python3 "$ROOT/scripts/ci/observe_i009a_crash.py" --mode fatal --iso "$FATAL_ISO" \
@@ -325,7 +327,7 @@ python3 "$ROOT/scripts/ci/observe_i009a_crash.py" --mode fatal --iso "$FATAL_ISO
 sed -i 's/vita.i009.test_orphan=1 vita.i009.test_fatal=1/vita.i009.test_active_shutdown=1/' \
   "$ISO_TREE/boot/grub/grub.cfg"
 SHUTDOWN_ISO="$WORK/vita-root-active-shutdown.iso"
-grub-mkrescue -o "$SHUTDOWN_ISO" "$ISO_TREE" >"$LOG/grub-shutdown.log" 2>&1 ||
+grub-mkrescue -o "$SHUTDOWN_ISO" "$ISO_TREE" "${iso_label_args[@]}" >"$LOG/grub-shutdown.log" 2>&1 ||
   fail "active shutdown fixture ISO build failed"
 sha256sum "$SHUTDOWN_ISO" >"$LOG/shutdown-iso.sha256"
 python3 "$ROOT/scripts/ci/observe_i009a_crash.py" --mode shutdown --iso "$SHUTDOWN_ISO" \
@@ -347,7 +349,7 @@ fi
 )
 cp "$WORK/tampered-stage1.cpio.gz" "$ISO_TREE/boot/stage1.cpio.gz"
 TAMPER_ISO="$WORK/vita-tampered-root.iso"
-grub-mkrescue "${grub_args[@]}" -o "$TAMPER_ISO" "$ISO_TREE" >"$LOG/grub-tamper.log" 2>&1 ||
+grub-mkrescue -o "$TAMPER_ISO" "$ISO_TREE" "${iso_label_args[@]}" >"$LOG/grub-tamper.log" 2>&1 ||
   fail "tampered ISO generation failed"
 sha256sum "$TAMPER_ISO" >"$LOG/tampered-iso.sha256"
 python3 "$ROOT/scripts/ci/observe_i009b1_tamper.py" --iso "$TAMPER_ISO" \

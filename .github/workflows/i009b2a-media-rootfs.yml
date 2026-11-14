@@ -7,6 +7,7 @@ on:
       - "scripts/ci/validate_i009b2a_media_rootfs.sh"
       - "scripts/ci/validate_i009b1_rootfs.sh"
       - "scripts/ci/observe_i009b1_tamper.py"
+      - "scripts/ci/observe_i006_guest_session.py"
       - "scripts/ci/observe_i009a_crash.py"
       - "prototypes/vita-stage1/**"
       - "prototypes/vita-init/**"
