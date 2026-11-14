@@ -9,7 +9,8 @@ use nix::mount::{mount, MsFlags};
 use nix::unistd::{chroot, getpid};
 use std::ffi::CStr;
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
+use sha2::{Digest, Sha256};
 use std::os::fd::AsRawFd;
 use std::os::unix::process::CommandExt;
 use std::process::Command;
@@ -17,6 +18,7 @@ use std::thread;
 use std::time::Duration;
 
 const IMAGE: &str = "/system.squashfs";
+const EXPECTED_ROOT_IMAGE_SHA256: &str = env!("VITA_ROOTFS_SHA256");
 const LOOP_DEVICE: &str = "/dev/loop0";
 const NEW_ROOT: &str = "/newroot";
 // Linux loop.h LOOP_SET_FD; the only unsafe call is this fixed, early-boot
@@ -72,7 +74,34 @@ fn load_pinned_modules() -> io::Result<()> {
     Ok(())
 }
 
+fn verify_image_hash() -> io::Result<()> {
+    let mut file = File::open(IMAGE)?;
+    let mut hasher = Sha256::new();
+    let mut buf = [0_u8; 64 * 1024];
+    let mut total = 0_u64;
+    loop {
+        let n = file.read(&mut buf)?;
+        if n == 0 { break; }
+        total += n as u64;
+        if total > 128 * 1024 * 1024 {
+            return Err(io::Error::other("unexpectedly large immutable root image"));
+        }
+        hasher.update(&buf[..n]);
+    }
+    let actual = format!("{:x}", hasher.finalize());
+    if actual != EXPECTED_ROOT_IMAGE_SHA256 {
+        return Err(io::Error::other(format!(
+            "immutable root image SHA-256 mismatch: {actual}"
+        )));
+    }
+    serial(&format!(
+        "VITA_I009B1_ROOT_IMAGE_SHA256_OK bytes={total} digest={actual}"
+    ));
+    Ok(())
+}
+
 fn mount_root_image() -> io::Result<()> {
+    verify_image_hash()?;
     let source = File::open(IMAGE)?;
     let loop_fd = OpenOptions::new().read(true).open(LOOP_DEVICE)?;
     // SAFETY: LOOP_SET_FD takes a second argument holding an open fd.
