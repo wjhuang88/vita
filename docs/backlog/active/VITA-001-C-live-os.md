@@ -88,3 +88,7 @@ First I009b increment: [I009b0 iteration](../../iterations/I009b0-immutable-vita
 ## I009b1 independent SquashFS root and Rust handoff (2026-11-14)
 
 [Issue #17](https://github.com/wjhuang88/vita/issues/17) / [I009b1 owner](../../iterations/I009b1-rootfs-stage1.md): genuine read-only rootfs and tiny Rust stage1->permanent PID1 handoff are being implemented and **not yet accepted** until BIOS/UEFI real-ISO guest plus exact-head AI review and CI. Input kernel and module sources are fixed to the existing Alpine ISO. The image is carried in RAM inside initramfs for a diskless fixture; not a full hardware rootfs, signed boot or final init selection.
+
+## I009b2a media-backed readonly root source (2026-11-14)
+
+[Issue #21](https://github.com/wjhuang88/vita/issues/21) / [I009b2a design and proof](../../iterations/I009b2a-media-rootfs.md): stage1 will mount a fixed **readonly ISO9660 /dev/sr0** and use the independent SquashFS file **from the ISO, not initramfs RAM**; old I009b1 embedded path remains a regression. This is a bounded QEMU engineering candidate, **not accepted without BIOS+UEFI guest evidence, negative tamper, full lifecycle CI and separate AI review**. Measurements, final Rust-vs-Dinit/Finit, hardware and release gates remain open.

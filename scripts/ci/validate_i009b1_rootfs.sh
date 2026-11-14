@@ -4,7 +4,12 @@ set -euo pipefail
 # verified read-only SquashFS '/' -> Rust permanent init -> Talos UID1000.
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WORK="$(mktemp -d /tmp/vita-i009b1.XXXXXX)"
+MEDIA_MODE="${VITA_I009B2_MEDIA_MODE:-0}"
+[[ "$MEDIA_MODE" == 0 || "$MEDIA_MODE" == 1 ]] || { echo "Invalid I009b2 mode" >&2; exit 1; }
 LOG="$ROOT/i009b1-rootfs-logs"
+if [[ "$MEDIA_MODE" == 1 ]]; then
+  LOG="$ROOT/i009b2-media-logs"
+fi
 ISO="alpine-virt-3.24.3-x86_64.iso"
 URL="https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/$ISO"
 ISO_HASH="cdc1bc0efc64d8d611bf3733f54868172a545888dfd726f518bf279bcb0ff1af"
@@ -60,13 +65,19 @@ KVER="$(find "$SRC/usr/lib/modules" -mindepth 1 -maxdepth 1 -type d -printf '%f\
 echo "kernel_release=$KVER" >"$LOG/kernel-modules.txt"
 # Without --all, modprobe interprets 'squashfs' as a parameter to
 # 'loop' rather than a second requested kernel module.
-modprobe --all -d "$SRC" -S "$KVER" --show-depends loop squashfs \
+drivers=(loop squashfs)
+if [[ "$MEDIA_MODE" == 1 ]]; then
+  # The Linux ISO is explicitly /dev/sr0 in the diskless QEMU fixture.
+  # Resolve all dependencies for optical media, ISO9660, ATA/ATAPI and loop.
+  drivers+=(iso9660 sr_mod ata_piix)
+fi
+modprobe --all -d "$SRC" -S "$KVER" --show-depends "${drivers[@]}" \
   >"$LOG/modprobe-plan.txt" 2>"$LOG/modprobe-error.txt" ||
   fail "pinned module dependencies for squashfs/loop could not be resolved"
 if grep -Eq '^(install|remove|softdep) ' "$LOG/modprobe-plan.txt"; then
   fail "unexpected executable module helper in pinned manifest"
 fi
-for required in loop squashfs; do
+for required in "${drivers[@]}"; do
   grep -Eq "(^|/)$required[.]ko|^builtin .*$required" "$LOG/modprobe-plan.txt" ||
     fail "dependency plan does not include mandatory module $required"
 done
@@ -128,7 +139,7 @@ done
 
 echo "[I009b1] Build genuinely separate immutable SquashFS system image"
 TREE="$WORK/rootfs"
-mkdir -p "$TREE/dev" "$TREE/proc" "$TREE/sys" "$TREE/run" "$TREE/tmp" \
+mkdir -p "$TREE/dev" "$TREE/proc" "$TREE/sys" "$TREE/run" "$TREE/tmp" "$TREE/media" \
   "$TREE/vita" "$TREE/etc" "$TREE/root"
 cp "$INIT" "$TREE/init"
 cp "$TALOS" "$TREE/vita/vita-interaction-prototype"
@@ -155,6 +166,11 @@ grep -Fq '/vita/vita-interaction-prototype' "$LOG/root-image-entries.txt" ||
 ROOT_HASH="$(sha256sum "$IMAGE" | awk '{print $1}')"
 
 echo "[I009b1] Pin root SHA inside independently compiled Rust stage1"
+if [[ "$MEDIA_MODE" == 1 ]]; then
+  export VITA_ROOT_SOURCE=media
+else
+  unset VITA_ROOT_SOURCE || true
+fi
 VITA_ROOTFS_SHA256="$ROOT_HASH" cargo +1.99.0 build \
   --manifest-path "$ROOT/prototypes/vita-stage1/Cargo.toml" \
   --release --target x86_64-unknown-linux-musl
@@ -170,7 +186,13 @@ EARLY="$WORK/early"
 mkdir -p "$EARLY/dev" "$EARLY/proc" "$EARLY/sys" "$EARLY/run" \
   "$EARLY/tmp" "$EARLY/newroot" "$EARLY/modules"
 cp "$STAGE" "$EARLY/init"
-cp "$IMAGE" "$EARLY/system.squashfs"
+if [[ "$MEDIA_MODE" == 0 ]]; then
+  cp "$IMAGE" "$EARLY/system.squashfs"
+else
+  [[ ! -e "$EARLY/system.squashfs" ]] ||
+    fail "media-backed image must not be copied into initramfs"
+  echo "media-backed rootfs absent from early initramfs" >"$LOG/image-not-in-initramfs.txt"
+fi
 cp "$MODULES"/* "$EARLY/modules/"
 chmod 0755 "$EARLY/init"
 sudo mknod -m 0600 "$EARLY/dev/console" c 5 1
@@ -193,6 +215,11 @@ VITA_ISO="$WORK/vita-i009b1.iso"
 mkdir -p "$ISO_TREE/boot/grub"
 cp "$WORK/vmlinuz" "$ISO_TREE/boot/vmlinuz-virt"
 cp "$WORK/stage1-initramfs.cpio.gz" "$ISO_TREE/boot/stage1.cpio.gz"
+if [[ "$MEDIA_MODE" == 1 ]]; then
+  mkdir -p "$ISO_TREE/vita"
+  cp "$IMAGE" "$ISO_TREE/vita/system.squashfs"
+  sha256sum "$ISO_TREE/vita/system.squashfs" >"$LOG/iso-media-root-image.sha256"
+fi
 cat >"$ISO_TREE/boot/grub/grub.cfg" <<'GRUB'
 set default=0
 set timeout=0
@@ -204,16 +231,32 @@ menuentry "Vita experimental SquashFS root" {
     initrd /boot/stage1.cpio.gz
 }
 GRUB
-grub-mkrescue -o "$VITA_ISO" "$ISO_TREE" >"$LOG/grub.log" 2>&1 ||
+grub_args=()
+if [[ "$MEDIA_MODE" == 1 ]]; then
+  grub_args=(-V VITA_I009B2)
+fi
+grub-mkrescue "${grub_args[@]}" -o "$VITA_ISO" "$ISO_TREE" >"$LOG/grub.log" 2>&1 ||
   fail "firmware ISO build failed"
 sha256sum "$VITA_ISO" >"$LOG/vita-iso.sha256"
 stat -c %s "$VITA_ISO" >"$LOG/vita-iso.bytes"
 cp "$ISO_TREE/boot/grub/grub.cfg" "$LOG/grub.cfg"
+if [[ "$MEDIA_MODE" == 1 ]]; then
+  xorriso -indev "$VITA_ISO" -pvd_info >"$LOG/iso-volume-id.txt" 2>&1 ||
+    fail "cannot inspect ISO9660 volume descriptor"
+  grep -Fq VITA_I009B2 "$LOG/iso-volume-id.txt" ||
+    fail "generated media ISO volume label mismatch"
+fi
 
 for mode in bios uefi; do
   echo "[I009b1] Boot generated ISO using $mode firmware into genuine Talos"
+  extra_markers=()
+  if [[ "$MEDIA_MODE" == 1 ]]; then
+    extra_markers=(--required-marker VITA_I009B2_MEDIA_SOURCE_OK
+                   --required-marker VITA_I009B2_MEDIA_MOUNT_MOVED_OK)
+  fi
   python3 "$ROOT/scripts/ci/observe_i006_guest_session.py" \
     --iso "$VITA_ISO" --firmware "$mode" --log-dir "$LOG/$mode" \
+    "${extra_markers[@]}" \
     --timeout 240 --final-marker VITA_I007_DEFAULT_TALOS_EXIT_OK \
     --required-marker VITA_I009_ORPHAN_REAPED_OK \
     --required-marker VITA_I009B1_STAGE1_SQUASHFS_MOUNTED \
@@ -232,6 +275,13 @@ for mode in bios uefi; do
   if grep -Eq 'VITA_I009B1_STAGE1_FAIL_CLOSED|VITA_I006_GUEST_SESSION_ERROR:' \
     "$LOG/$mode/guest-serial.log"; then
     fail "fatal guest init or image error under $mode"
+  fi
+  if [[ "$MEDIA_MODE" == 1 ]]; then
+    for marker in VITA_I009B2_MEDIA_SOURCE_OK VITA_I009B2_MEDIA_MOUNT_MOVED_OK; do
+      grep -Fq "$marker" "$LOG/$mode/guest-serial.log" ||
+        fail "missing readonly ISO-media marker $marker under $mode"
+    done
+    echo "VITA_I009B2_MEDIA_ROOTFS_GUEST_OK mode=$mode"
   fi
   echo "VITA_I009B1_IMMUTABLE_ROOTFS_GUEST_OK mode=$mode"
 done
@@ -283,7 +333,11 @@ echo "VITA_I009B1_SWITCHED_ROOT_LIFECYCLE_VM_OK"
 echo "[I009b1] Negative proof: alter the root image AFTER embedding its digest in stage1"
 sed -i 's/vita.i009.test_active_shutdown=1/vita.i009.test_orphan=1/' \
   "$ISO_TREE/boot/grub/grub.cfg"
-printf 'intentionally changed after stage1 hash was compiled' >>"$EARLY/system.squashfs"
+if [[ "$MEDIA_MODE" == 1 ]]; then
+  printf 'intentionally changed after stage1 hash was compiled' >>"$ISO_TREE/vita/system.squashfs"
+else
+  printf 'intentionally changed after stage1 hash was compiled' >>"$EARLY/system.squashfs"
+fi
 (
   cd "$EARLY"
   find . -print0 | cpio --null -o --format=newc --owner=0:0 2>"$LOG/cpio-tamper.log" \
@@ -291,9 +345,12 @@ printf 'intentionally changed after stage1 hash was compiled' >>"$EARLY/system.s
 )
 cp "$WORK/tampered-stage1.cpio.gz" "$ISO_TREE/boot/stage1.cpio.gz"
 TAMPER_ISO="$WORK/vita-tampered-root.iso"
-grub-mkrescue -o "$TAMPER_ISO" "$ISO_TREE" >"$LOG/grub-tamper.log" 2>&1 ||
+grub-mkrescue "${grub_args[@]}" -o "$TAMPER_ISO" "$ISO_TREE" >"$LOG/grub-tamper.log" 2>&1 ||
   fail "tampered ISO generation failed"
 sha256sum "$TAMPER_ISO" >"$LOG/tampered-iso.sha256"
 python3 "$ROOT/scripts/ci/observe_i009b1_tamper.py" --iso "$TAMPER_ISO" \
   --log-dir "$LOG/tampered" --timeout 180
+if [[ "$MEDIA_MODE" == 1 ]]; then
+  echo "VITA_I009B2_MEDIA_ROOTFS_VM_OK"
+fi
 echo "VITA_I009B1_IMMUTABLE_ROOTFS_VM_OK"
