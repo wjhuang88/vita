@@ -161,9 +161,9 @@ fn reject_system_write() -> io::Result<()> {
 }
 
 fn mount_immutable_vita() -> io::Result<()> {
-    // The initramfs root itself is still RAM-backed and mutable by PID1.
-    // This first bounded I009b proof protects the application subtree, NOT
-    // a product read-only squashfs root or secure boot.
+    // In direct I009b0 initramfs boots this protects the application tree,
+    // not '/'. In I009b1 stage2 the entire SquashFS root has already been
+    // validated read-only; this extra bind mount preserves older contracts.
     mount(Some("/vita"), "/vita", None::<&str>, MsFlags::MS_BIND, None::<&str>)
         .map_err(|e| io::Error::other(format!("bind /vita failed: {e}")))?;
     mount(
@@ -275,6 +275,32 @@ fn session_child(crash: bool) -> io::Result<()> {
     // not only from root PID1. A permission-denied error is not sufficient.
     reject_system_write()?;
     serial("VITA_I009B0_NONROOT_SYSTEM_WRITE_DENIED uid=1000 errno=EROFS");
+    // The I009b1 SquashFS guest has a test-only, otherwise UID1000-writable
+    // directory. It prevents EACCES from masquerading as readonly-root EROFS.
+    let rootinfo = fs::read_to_string("/proc/self/mountinfo")?;
+    if rootinfo.lines().any(|line| {
+        let w: Vec<_> = line.split_ascii_whitespace().collect();
+        w.len() > 8 && w[4] == "/" && line.contains(" - squashfs ")
+    }) {
+        const FIXTURE: &str = "/.vita-i009b1-write-fixture";
+        let metadata = fs::metadata(FIXTURE)?;
+        if metadata.mode() & 0o777 != 0o777 {
+            return Err(io::Error::other("nonroot rootfs probe fixture permissions are insufficient"));
+        }
+        match OpenOptions::new().write(true).create_new(true)
+            .open("/.vita-i009b1-write-fixture/uid1000-probe") {
+            Err(e) if e.raw_os_error() == Some(Errno::EROFS as i32) => {
+                serial("VITA_I009B1_NONROOT_ROOT_WRITE_DENIED uid=1000 errno=EROFS");
+            }
+            Ok(_) => {
+                let _ = fs::remove_file("/.vita-i009b1-write-fixture/uid1000-probe");
+                return Err(io::Error::other("nonroot could write permanent rootfs"));
+            }
+            Err(e) => return Err(io::Error::other(format!(
+                "nonroot rootfs write must return EROFS, got: {e}"
+            ))),
+        }
+    }
     fs::write("/tmp/.vita-i009b0-volatile-probe", b"vita-i009b0")?;
     if fs::read("/tmp/.vita-i009b0-volatile-probe")? != b"vita-i009b0" {
         return Err(io::Error::other("volatile /tmp read/write mismatch"));

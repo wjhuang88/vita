@@ -127,6 +127,11 @@ mkdir -p "$TREE/dev" "$TREE/proc" "$TREE/sys" "$TREE/run" "$TREE/tmp" \
 cp "$INIT" "$TREE/init"
 cp "$TALOS" "$TREE/vita/vita-interaction-prototype"
 chmod 0755 "$TREE/init" "$TREE/vita/vita-interaction-prototype"
+# Disposable engineering-only probe: guarantees a UID 1000 file creation
+# would succeed in this directory if the *root filesystem* were writable.
+# It is intentionally absent from any product rootfs contract.
+mkdir -p "$TREE/.vita-i009b1-write-fixture"
+chmod 0777 "$TREE/.vita-i009b1-write-fixture"
 printf 'root:x:0:0:root:/root:/bin/false\nvita:x:1000:1000:Vita Agent:/run/vita:/bin/false\n' >"$TREE/etc/passwd"
 printf 'root:x:0:\nvita:x:1000:\n' >"$TREE/etc/group"
 chmod 0644 "$TREE/etc/passwd" "$TREE/etc/group"
@@ -208,11 +213,12 @@ for mode in bios uefi; do
     --required-marker VITA_I009B1_STAGE1_SQUASHFS_MOUNTED \
     --required-marker VITA_I009B1_ROOT_IMAGE_SHA256_OK \
     --required-marker VITA_I009B1_ROOT_MOUNT_READONLY_OK \
+    --required-marker VITA_I009B1_NONROOT_ROOT_WRITE_DENIED \
     --required-marker VITA_I009B1_SWITCH_ROOT_PID1_CONTINUITY_OK
   for marker in VITA_I009B1_STAGE1_PID1_READY \
     VITA_I009B1_STAGE1_SQUASHFS_MOUNTED VITA_I009B1_ROOT_IMAGE_SHA256_OK \
     VITA_I009B1_ROOT_MOUNT_READONLY_OK VITA_I009B1_SWITCH_ROOT_PID1_CONTINUITY_OK \
-    VITA_I009_TALOS_UID=1000 VITA_I009_CONTROLLING_TTY_OK \
+    VITA_I009B1_NONROOT_ROOT_WRITE_DENIED VITA_I009_TALOS_UID=1000 VITA_I009_CONTROLLING_TTY_OK \
     VITA_I009_ORPHAN_REAPED_OK VITA_I007_DEFAULT_TALOS_EXIT_OK; do
     grep -Fq "$marker" "$LOG/$mode/guest-serial.log" ||
       fail "missing $marker under $mode"

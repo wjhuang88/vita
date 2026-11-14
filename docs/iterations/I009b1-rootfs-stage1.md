@@ -26,3 +26,7 @@ This is not a full Alpine userspace or production Live OS. Root image is still *
 ## Evidence
 
 **PENDING** — actual QEMU, exact HEAD and independent review required. Never infer success from a compile or ISO creation alone.
+
+## Explicit root vs non-root EROFS proof
+
+The permanent PID 1 verifies that root's attempt to create a file directly under `/` returns EROFS, and the UID1000 Talos session helper checks a **test-only mode 0777 directory** embedded inside SquashFS. If the root had been incorrectly mounted read-write, the latter creation would be permitted by file permissions; accepting only EROFS therefore excludes a misleading EACCES-only check. The test-only directory must not be incorporated into the production filesystem schema. Both guest markers are mandatory on BIOS and UEFI. Not verified until new exact-head CI succeeds.
