@@ -45,13 +45,17 @@ grep -E '(^|/)lib/modules/' "$LOG/upstream-initramfs-entries.txt" \
   gzip -dc "$WORK/initramfs-virt" |
     cpio -idm --quiet --no-absolute-filenames --no-preserve-owner '*lib/modules/*'
 ) || fail "matching kernel module metadata extraction failed"
-[[ -d "$SRC/lib/modules" ]] || {
+# Alpine v3.24 initramfs ships modules under usr/lib/modules,
+# not lib/modules. Present the normal merged-/usr path expected by kmod
+# without changing or downloading any kernel module bytes.
+[[ -d "$SRC/usr/lib/modules" ]] || {
   find "$SRC" -maxdepth 6 -type f | head -n 25 >"$LOG/upstream-extracted-paths.txt"
-  fail "pinned module tree missing; inspect archive entries and extracted paths"
+  fail "pinned usr/lib/modules tree missing"
 }
-KVER="$(find "$SRC/lib/modules" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | head -1)"
+ln -s usr/lib "$SRC/lib"
+KVER="$(find "$SRC/usr/lib/modules" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | head -1)"
 [[ -n "$KVER" ]] || fail "kernel version not found"
-[[ "$(find "$SRC/lib/modules" -mindepth 1 -maxdepth 1 -type d | wc -l)" == 1 ]] ||
+[[ "$(find "$SRC/usr/lib/modules" -mindepth 1 -maxdepth 1 -type d | wc -l)" == 1 ]] ||
   fail "ambiguous kernel module versions"
 echo "kernel_release=$KVER" >"$LOG/kernel-modules.txt"
 modprobe -d "$SRC" -S "$KVER" --show-depends loop squashfs \
