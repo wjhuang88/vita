@@ -1,6 +1,6 @@
 # VITA-001-C — Operator can boot the project Live OS
 
-Status: Active (I008/I009a/I009b0/I009b1 VM slices merged; full Live OS and final init selection still open)
+Status: Active (I008/I009a/I009b0/I009b1/I009b2a VM slices merged; full Linux services, final init and release gates OPEN)
 
 
 As an operator,
@@ -97,4 +97,4 @@ First I009b increment: [I009b0 iteration](../../iterations/I009b0-immutable-vita
 
 ## I009b2a media-backed readonly root source (2026-11-14)
 
-[Issue #21](https://github.com/wjhuang88/vita/issues/21) / [I009b2a design and proof](../../iterations/I009b2a-media-rootfs.md): stage1 will mount a fixed **readonly ISO9660 /dev/sr0** and use the independent SquashFS file **from the ISO, not initramfs RAM**; old I009b1 embedded path remains a regression. This is a bounded QEMU engineering candidate, **not accepted without BIOS+UEFI guest evidence, negative tamper, full lifecycle CI and separate AI review**. Measurements, final Rust-vs-Dinit/Finit, hardware and release gates remain open.
+[Issue #21](https://github.com/wjhuang88/vita/issues/21) / [I009b2a design and proof](../../iterations/I009b2a-media-rootfs.md): stage1 will mount a fixed **readonly ISO9660 /dev/sr0** and use the independent SquashFS file **from the ISO, not initramfs RAM**; old I009b1 embedded path remains a regression. This was a bounded QEMU engineering candidate, **now verified** under BIOS+UEFI, negative tamper, all lifecycle faults and separately executed Copilot review at exact source `29297be`. [PR #22](https://github.com/wjhuang88/vita/pull/22) merged as `f0788fc`; [CI 43558241910](https://github.com/wjhuang88/vita/actions/runs/43558241910) records the readonly ISO source and PID1/Talos evidence. Early initramfs is now 0.48 MiB instead of 5.18 MiB (90.77% smaller) while the SquashFS remains 4.84 MiB; full ISO 29.69 MiB. **Only the VM media-source slice is Complete.** Measurements of latency/RAM, Linux device services, final Rust-vs-Dinit/Finit choice and mandatory human physical/security/license/release approvals remain OPEN. [Owner record](../../iterations/I009b2a-media-rootfs.md).
