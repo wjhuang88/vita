@@ -23,7 +23,7 @@ const LOOP_DEVICE: &str = "/dev/loop0";
 const NEW_ROOT: &str = "/newroot";
 // Linux loop.h LOOP_SET_FD; the only unsafe call is this fixed, early-boot
 // ioctl on an in-initramfs device inode. No user paths or untrusted args.
-const LOOP_SET_FD: nix::libc::c_int = 0x4c00;
+const LOOP_SET_FD: u32 = 0x4c00;
 
 fn serial(message: &str) {
     if let Ok(mut f) = OpenOptions::new().write(true).open("/dev/console") {
@@ -117,7 +117,7 @@ fn mount_root_image() -> io::Result<()> {
     // Both fds point to fixed, root-owned initramfs objects. This is the
     // one narrowly audited unsafe syscall boundary in stage-1.
     let result = unsafe {
-        nix::libc::ioctl(loop_fd.as_raw_fd(), LOOP_SET_FD, source.as_raw_fd())
+        nix::libc::ioctl(loop_fd.as_raw_fd(), LOOP_SET_FD as _, source.as_raw_fd())
     };
     if result != 0 {
         return Err(io::Error::other(format!(
