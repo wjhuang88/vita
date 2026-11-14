@@ -39,7 +39,7 @@ Firmware -> GRUB / owned Live ISO [Ventoy compatibility is independent]
 | Alpine/musl as the first engineering base | **ACCEPTED for prototypes**, reassess only with evidence |
 | Independent PID 1 / session / broker trust domains | **ACCEPTED** |
 | Rust PID 1 vs Dinit/Finit/BusyBox+OpenRC | **OPEN**, measurable I009 decision |
-| Read-only rootfs `/`, versioned images and separated user data | **ACCEPTED target**, **NOT IMPLEMENTED** (I009b0 protects only `/vita`) |
+| Read-only rootfs `/`, versioned images and separated user data | **Real readonly SquashFS `/` VERIFIED in I009b1 QEMU**, but versioned product updates, user data and production integrity chain NOT IMPLEMENTED |
 | Read-only `/vita` application mount and bounded volatile scratch | **VERIFIED I009b0 VM-only** — PR #16; not whole-rootfs immutability |
 | BIOS/UEFI guest boot via Vita-owned ISO and Talos SDK fixture | **VERIFIED I008 VM-only** |
 | Production controlling TTY, service reaper/supervisor, drivers/hotplug | **NOT YET VERIFIED** |
@@ -57,3 +57,7 @@ Borrow from ChromeOS only its stable base, session-supervisor separation, immuta
 ## Latest boot/system boundary evidence (2026-11-14)
 
 [I009b0](../iterations/I009b0-immutable-vita-system.md) confirms read-only application subtree `/vita` via root+UID1000 `EROFS` from real QEMU BIOS and OVMF UEFI ISO guests ([PR #16](https://github.com/wjhuang88/vita/pull/16), merged `a7a241c`). It does **not** validate readonly `/` or a complete Linux rootfs. See [I009b1 #17](https://github.com/wjhuang88/vita/issues/17) for the next engineering gate. All prior I009a lifecycle proof remains intact. Rust PID1 selection remains OPEN.
+
+## I009b1 genuine immutable root evidence (2026-11-14)
+
+[PR #19](https://github.com/wjhuang88/vita/pull/19) / [QEMU evidence 43555621207](https://github.com/wjhuang88/vita/actions/runs/43555621207) confirms a separate SHA-checked SquashFS `/` with root/UID1000 EROFS, Rust stage1 → permanent PID1 continuity, ABI-matched `loop`/`squashfs` modules, native Talos TTY under BIOS/UEFI, a tampered image failing closed and post-handoff lifecycle tests. **17/17 final-code-HEAD checks succeeded**. The 4.84 MiB root is embedded into a 5.18 MiB compressed initramfs for VM proof, not direct ISO media mapping. No final init choice, production trust/driver stack, human hardware/license/security or release signoff. This supersedes the preceding dated I009b0-only status, not the architectural decisions.
