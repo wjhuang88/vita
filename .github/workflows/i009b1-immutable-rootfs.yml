@@ -4,6 +4,8 @@ on:
     paths:
       - ".github/workflows/i009b1-immutable-rootfs.yml"
       - "scripts/ci/validate_i009b1_rootfs.sh"
+      - "scripts/ci/observe_i009b1_tamper.py"
+      - "scripts/ci/observe_i009a_crash.py"
       - "prototypes/vita-stage1/**"
       - "prototypes/vita-init/**"
       - "prototypes/interaction-runtime/**"
@@ -21,13 +23,13 @@ jobs:
       - run: sh scripts/validate_project_governance.sh .
   immutable-rootfs-guest:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@v4
       - name: Check syntax
         run: |
           bash -n scripts/ci/validate_i009b1_rootfs.sh
-          python3 -m py_compile scripts/ci/observe_i006_guest_session.py
+          python3 -m py_compile scripts/ci/observe_i006_guest_session.py scripts/ci/observe_i009a_crash.py scripts/ci/observe_i009b1_tamper.py
       - name: Build real SquashFS and boot firmware ISO in BIOS and UEFI
         run: bash scripts/ci/validate_i009b1_rootfs.sh
       - name: Retain logs and provenance, not the ISO

@@ -66,6 +66,10 @@ modprobe --all -d "$SRC" -S "$KVER" --show-depends loop squashfs \
 if grep -Eq '^(install|remove|softdep) ' "$LOG/modprobe-plan.txt"; then
   fail "unexpected executable module helper in pinned manifest"
 fi
+for required in loop squashfs; do
+  grep -Eq "(^|/)$required[.]ko|^builtin .*$required" "$LOG/modprobe-plan.txt" ||
+    fail "dependency plan does not include mandatory module $required"
+done
 MODULES="$WORK/modules"
 mkdir -p "$MODULES"
 : >"$MODULES/load.order"
@@ -231,4 +235,65 @@ for mode in bios uefi; do
   fi
   echo "VITA_I009B1_IMMUTABLE_ROOTFS_GUEST_OK mode=$mode"
 done
+echo "[I009b1] Replay lifecycle faults through *stage1 + SquashFS*, not only direct initramfs"
+python3 "$ROOT/scripts/ci/observe_i006_guest_session.py" \
+  --iso "$VITA_ISO" --firmware bios --log-dir "$LOG/ctrl-c" \
+  --timeout 180 --ctrl-c-exit
+grep -Fq VITA_I009_TALOS_NATIVE_EXIT_OK "$LOG/ctrl-c/guest-serial.log" ||
+  fail "Ctrl+C failed across the stage1 root handoff"
+
+sed -i 's/vita.i009.test_orphan=1/vita.i009.test_crash=1/' "$ISO_TREE/boot/grub/grub.cfg"
+CRASH_ISO="$WORK/vita-root-crash.iso"
+grub-mkrescue -o "$CRASH_ISO" "$ISO_TREE" >"$LOG/grub-crash.log" 2>&1 ||
+  fail "crash fixture ISO generation failed"
+sha256sum "$CRASH_ISO" >"$LOG/crash-iso.sha256"
+python3 "$ROOT/scripts/ci/observe_i009a_crash.py" --iso "$CRASH_ISO" \
+  --log-dir "$LOG/crash" --timeout 180
+grep -Fq 'VITA_I009_CRASH_BUDGET_EXHAUSTED attempts=3' "$LOG/crash/guest-serial.log" ||
+  fail "lifecycle crash budget missing after root handoff"
+
+sed -i 's/vita.i009.test_crash=1/vita.i009.test_orphan=1 vita.i009.test_spawn_failure=1/' \
+  "$ISO_TREE/boot/grub/grub.cfg"
+SPAWN_ISO="$WORK/vita-root-spawn-failure.iso"
+grub-mkrescue -o "$SPAWN_ISO" "$ISO_TREE" >"$LOG/grub-spawn.log" 2>&1 ||
+  fail "spawn failure fixture build failed"
+sha256sum "$SPAWN_ISO" >"$LOG/spawn-iso.sha256"
+python3 "$ROOT/scripts/ci/observe_i009a_crash.py" --mode spawn --iso "$SPAWN_ISO" \
+  --log-dir "$LOG/spawn-failure" --timeout 180
+
+sed -i 's/vita.i009.test_spawn_failure=1/vita.i009.test_fatal=1/' \
+  "$ISO_TREE/boot/grub/grub.cfg"
+FATAL_ISO="$WORK/vita-root-fatal-fallback.iso"
+grub-mkrescue -o "$FATAL_ISO" "$ISO_TREE" >"$LOG/grub-fatal.log" 2>&1 ||
+  fail "fatal reaper fixture ISO build failed"
+sha256sum "$FATAL_ISO" >"$LOG/fatal-iso.sha256"
+python3 "$ROOT/scripts/ci/observe_i009a_crash.py" --mode fatal --iso "$FATAL_ISO" \
+  --log-dir "$LOG/fatal" --timeout 180
+
+sed -i 's/vita.i009.test_orphan=1 vita.i009.test_fatal=1/vita.i009.test_active_shutdown=1/' \
+  "$ISO_TREE/boot/grub/grub.cfg"
+SHUTDOWN_ISO="$WORK/vita-root-active-shutdown.iso"
+grub-mkrescue -o "$SHUTDOWN_ISO" "$ISO_TREE" >"$LOG/grub-shutdown.log" 2>&1 ||
+  fail "active shutdown fixture ISO build failed"
+sha256sum "$SHUTDOWN_ISO" >"$LOG/shutdown-iso.sha256"
+python3 "$ROOT/scripts/ci/observe_i009a_crash.py" --mode shutdown --iso "$SHUTDOWN_ISO" \
+  --log-dir "$LOG/active-shutdown" --timeout 180
+echo "VITA_I009B1_SWITCHED_ROOT_LIFECYCLE_VM_OK"
+
+echo "[I009b1] Negative proof: alter the root image AFTER embedding its digest in stage1"
+sed -i 's/vita.i009.test_active_shutdown=1/vita.i009.test_orphan=1/' \
+  "$ISO_TREE/boot/grub/grub.cfg"
+printf 'intentionally changed after stage1 hash was compiled' >>"$EARLY/system.squashfs"
+(
+  cd "$EARLY"
+  find . -print0 | cpio --null -o --format=newc --owner=0:0 2>"$LOG/cpio-tamper.log" \
+    | gzip -9 >"$WORK/tampered-stage1.cpio.gz"
+)
+cp "$WORK/tampered-stage1.cpio.gz" "$ISO_TREE/boot/stage1.cpio.gz"
+TAMPER_ISO="$WORK/vita-tampered-root.iso"
+grub-mkrescue -o "$TAMPER_ISO" "$ISO_TREE" >"$LOG/grub-tamper.log" 2>&1 ||
+  fail "tampered ISO generation failed"
+sha256sum "$TAMPER_ISO" >"$LOG/tampered-iso.sha256"
+python3 "$ROOT/scripts/ci/observe_i009b1_tamper.py" --iso "$TAMPER_ISO" \
+  --log-dir "$LOG/tampered" --timeout 180
 echo "VITA_I009B1_IMMUTABLE_ROOTFS_VM_OK"
