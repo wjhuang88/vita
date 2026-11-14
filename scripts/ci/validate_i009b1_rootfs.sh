@@ -34,12 +34,21 @@ xorriso -osirrox on -indev "$WORK/$ISO" \
 sha256sum "$WORK/initramfs-virt" >"$LOG/upstream-initramfs.sha256"
 SRC="$WORK/kmodules"
 mkdir -p "$SRC"
+# Record actual archive names before selecting; Alpine cpio entries may
+# contain a leading ./, so do not assume a hard-coded path prefix.
+gzip -dc "$WORK/initramfs-virt" | cpio -it --quiet >"$LOG/upstream-initramfs-entries.txt" \
+  2>"$LOG/upstream-cpio-list.err" || fail "invalid source initramfs"
+grep -E '(^|/)lib/modules/' "$LOG/upstream-initramfs-entries.txt" \
+  >"$LOG/upstream-module-entries.txt" || fail "pinned initramfs contains no module entries"
 (
   cd "$SRC"
   gzip -dc "$WORK/initramfs-virt" |
-    cpio -idm --quiet --no-absolute-filenames --no-preserve-owner 'lib/modules/*'
+    cpio -idm --quiet --no-absolute-filenames --no-preserve-owner '*lib/modules/*'
 ) || fail "matching kernel module metadata extraction failed"
-[[ -d "$SRC/lib/modules" ]] || fail "pinned module tree missing"
+[[ -d "$SRC/lib/modules" ]] || {
+  find "$SRC" -maxdepth 6 -type f | head -n 25 >"$LOG/upstream-extracted-paths.txt"
+  fail "pinned module tree missing; inspect archive entries and extracted paths"
+}
 KVER="$(find "$SRC/lib/modules" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | head -1)"
 [[ -n "$KVER" ]] || fail "kernel version not found"
 [[ "$(find "$SRC/lib/modules" -mindepth 1 -maxdepth 1 -type d | wc -l)" == 1 ]] ||
