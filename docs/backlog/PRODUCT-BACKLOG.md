@@ -32,3 +32,6 @@
 - Optional graphical Agent workspace.
 
 Completed or superseded item detail lives in `archive/`; this file remains the prioritization surface.
+
+
+**I009b1 VM engineering checkpoint (2026-11-14):** [PR #19](https://github.com/wjhuang88/vita/pull/19) merged, 17/17 final-head checks; actual readonly SquashFS `/` and stage1/PID1 handoff proven in QEMU. VITA-001-C remains Active for media mapping, services/drivers, final init comparison and human release gates.
