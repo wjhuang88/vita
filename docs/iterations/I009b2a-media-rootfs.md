@@ -27,3 +27,7 @@ The permanent PID1 still verifies the **actual** readonly SquashFS root and root
 ## Proof log
 
 PENDING — commit/CI and independent-review evidence must be recorded before closure.
+
+## Integration note — ISO9660 vs isofs module
+
+Initial media CI failed before QEMU because the module manifest mistakenly requested `iso9660` as a **module name**, while Linux uses the `isofs` driver for the filesystem type `iso9660`. The dependency-plan request now uses `isofs`; the guest mount remains `iso9660`. No successful media guest boot is claimed until repeated exact-HEAD CI.

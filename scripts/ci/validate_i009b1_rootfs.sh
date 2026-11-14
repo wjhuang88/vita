@@ -69,7 +69,9 @@ drivers=(loop squashfs)
 if [[ "$MEDIA_MODE" == 1 ]]; then
   # The Linux ISO is explicitly /dev/sr0 in the diskless QEMU fixture.
   # Resolve all dependencies for optical media, ISO9660, ATA/ATAPI and loop.
-  drivers+=(iso9660 sr_mod ata_piix)
+  # The Linux filesystem type is 'iso9660', but its kernel driver
+  # is named 'isofs'. Require module identity, not filesystem type.
+  drivers+=(isofs sr_mod ata_piix)
 fi
 modprobe --all -d "$SRC" -S "$KVER" --show-depends "${drivers[@]}" \
   >"$LOG/modprobe-plan.txt" 2>"$LOG/modprobe-error.txt" ||
