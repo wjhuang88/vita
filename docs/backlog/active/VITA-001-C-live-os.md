@@ -1,6 +1,6 @@
 # VITA-001-C — Operator can boot the project Live OS
 
-Status: Active (I008 ISO firmware proof merged; I009a minimal init/session lifecycle selected; full Live OS remains open)
+Status: Active (I008/I009a/I009b0/I009b1 VM slices merged; full Live OS and final init selection still open)
 
 
 As an operator,
@@ -85,9 +85,15 @@ First I009b increment: [I009b0 iteration](../../iterations/I009b0-immutable-vita
 
 [I009b0 iteration](../../iterations/I009b0-immutable-vita-system.md) is **Complete only for the VM-only read-only `/vita` subtree**; kernel mounts deny root and UID1000 writes with `EROFS`, while volatile runtime remains usable and native Talos completes both firmware ISO boots. Original and final source heads each passed 14/14 checks. Full rootfs `/` is **still writable RAM-based initramfs**; [I009b1 #17](https://github.com/wjhuang88/vita/issues/17) tracks actual immutable image/switch_root and module inventory. Story C stays **Active**; the Rust PID1 candidate is not the final selection. Security, licensing, hardware and physical-media human acceptance remain **PENDING**.
 
-## I009b1 independent SquashFS root and Rust handoff (2026-11-14)
+## I009b1 historical implementation proposal (completed for VM; evidence below)
 
 [Issue #17](https://github.com/wjhuang88/vita/issues/17) / [I009b1 owner](../../iterations/I009b1-rootfs-stage1.md): genuine read-only rootfs and tiny Rust stage1->permanent PID1 handoff are being implemented and **not yet accepted** until BIOS/UEFI real-ISO guest plus exact-head AI review and CI. Input kernel and module sources are fixed to the existing Alpine ISO. The image is carried in RAM inside initramfs for a diskless fixture; not a full hardware rootfs, signed boot or final init selection.
+
+## I009b1 actual readonly rootfs — VM completion (2026-11-14)
+
+[PR #19](https://github.com/wjhuang88/vita/pull/19) merged as `96713752`, with 17/17 checks, independent Copilot review and no unresolved findings. [QEMU run 43555621207](https://github.com/wjhuang88/vita/actions/runs/43555621207) confirms **real readonly SquashFS `/`** instead of I009b0's readonly `/vita`: both root and UID 1000 writes fail EROFS, real BIOS/UEFI boot to Talos, stage1 verified image SHA, kernel module/TTY/PID1 continuity, negative tamper rejection, and lifecycle fault scenarios all passed. [Iteration owner and limits](../../iterations/I009b1-rootfs-stage1.md).
+
+**Story C remains Active** for optimized immutable-media mapping, full Linux devices/services, PID1 benchmark/choice, secure recovery, persistence and human hardware, licensing and release review. No product safety approval is implied by AI review.
 
 ## I009b2a media-backed readonly root source (2026-11-14)
 
