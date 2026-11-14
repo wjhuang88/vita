@@ -46,6 +46,15 @@ fn early_mounts() -> io::Result<()> {
     mount_fs("devtmpfs", "/dev", "devtmpfs", MsFlags::MS_NOSUID, Some("mode=0755"))?;
     mount_fs("tmpfs", "/run", "tmpfs", safe, Some("mode=0755,size=16m"))?;
     mount_fs("tmpfs", "/tmp", "tmpfs", safe | MsFlags::MS_NOEXEC, Some("mode=1777,size=16m"))?;
+    fs::create_dir_all("/run/vita")?;
+    // Preserve the existing I006 Talos observer's meaningful readiness
+    // contract: Linux procfs and volatile guest mounts have *actually*
+    // been established before the prompt becomes interactive.
+    if fs::read_to_string("/proc/uptime")?.trim().is_empty() {
+        return Err(io::Error::other("early procfs is unavailable"));
+    }
+    serial("VITA_I006_GUEST_PROC_READY");
+    serial("VITA_I007_RUNTIME_MOUNTS_READY proc=proc sys=sysfs run=tmpfs tmp=tmpfs");
     Ok(())
 }
 
