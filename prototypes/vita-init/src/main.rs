@@ -161,9 +161,9 @@ fn reject_system_write() -> io::Result<()> {
 }
 
 fn mount_immutable_vita() -> io::Result<()> {
-    // The initramfs root itself is still RAM-backed and mutable by PID1.
-    // This first bounded I009b proof protects the application subtree, NOT
-    // a product read-only squashfs root or secure boot.
+    // In direct I009b0 initramfs boots this protects the application tree,
+    // not '/'. In I009b1 stage2 the entire SquashFS root has already been
+    // validated read-only; this extra bind mount preserves older contracts.
     mount(Some("/vita"), "/vita", None::<&str>, MsFlags::MS_BIND, None::<&str>)
         .map_err(|e| io::Error::other(format!("bind /vita failed: {e}")))?;
     mount(
@@ -195,6 +195,48 @@ fn verify_rootfs_ownership() -> io::Result<()> {
         }
     }
     serial("VITA_I009_ROOTFS_OWNER_OK uid=0 gid=0");
+    Ok(())
+}
+
+/// Stage2 is reached via stage1's switch_root + exec at PID 1, not a new
+/// process. Verify the *root mount* is genuinely SquashFS and read-only,
+/// rather than accepting the I009b0 /vita-only bind-remount proof.
+fn verify_stage2_immutable_root() -> io::Result<()> {
+    if std::process::id() != 1 {
+        return Err(io::Error::other("stage2 was not exec'd into PID 1"));
+    }
+    let mounts = fs::read_to_string("/proc/self/mountinfo")?;
+    let found = mounts.lines().any(|line| {
+        let words: Vec<_> = line.split_ascii_whitespace().collect();
+        words.len() > 8 && words[4] == "/" &&
+        words[5].split(',').any(|opt| opt == "ro") &&
+        line.contains(" - squashfs ")
+    });
+    if !found {
+        return Err(io::Error::other("stage2 '/' is not a read-only squashfs mount"));
+    }
+    match OpenOptions::new().write(true).create_new(true).open("/.vita-rootfs-write-probe") {
+        Err(error) if error.raw_os_error() == Some(Errno::EROFS as i32) => {}
+        Ok(_) => {
+            let _ = fs::remove_file("/.vita-rootfs-write-probe");
+            return Err(io::Error::other("stage2 rootfs unexpectedly writable"));
+        }
+        Err(error) => return Err(io::Error::other(format!(
+            "unexpected root write-probe errno: {error}"
+        ))),
+    }
+    let mounted = fs::read_to_string("/proc/mounts")?;
+    for (path, typ) in [("/proc", "proc"), ("/sys", "sysfs"),
+        ("/dev", "devtmpfs"), ("/run", "tmpfs"), ("/tmp", "tmpfs")] {
+        if !mounted.lines().any(|line| {
+            let w: Vec<_> = line.split_ascii_whitespace().collect();
+            w.len() > 2 && w[1] == path && w[2] == typ
+        }) {
+            return Err(io::Error::other(format!("stage2 mount not moved: {path}")));
+        }
+    }
+    serial("VITA_I009B1_ROOT_MOUNT_READONLY_OK path=/ fstype=squashfs errno=EROFS pid=1");
+    serial("VITA_I009B1_SWITCH_ROOT_PID1_CONTINUITY_OK");
     Ok(())
 }
 
@@ -233,6 +275,32 @@ fn session_child(crash: bool) -> io::Result<()> {
     // not only from root PID1. A permission-denied error is not sufficient.
     reject_system_write()?;
     serial("VITA_I009B0_NONROOT_SYSTEM_WRITE_DENIED uid=1000 errno=EROFS");
+    // The I009b1 SquashFS guest has a test-only, otherwise UID1000-writable
+    // directory. It prevents EACCES from masquerading as readonly-root EROFS.
+    let rootinfo = fs::read_to_string("/proc/self/mountinfo")?;
+    if rootinfo.lines().any(|line| {
+        let w: Vec<_> = line.split_ascii_whitespace().collect();
+        w.len() > 8 && w[4] == "/" && line.contains(" - squashfs ")
+    }) {
+        const FIXTURE: &str = "/.vita-i009b1-write-fixture";
+        let metadata = fs::metadata(FIXTURE)?;
+        if metadata.mode() & 0o777 != 0o777 {
+            return Err(io::Error::other("nonroot rootfs probe fixture permissions are insufficient"));
+        }
+        match OpenOptions::new().write(true).create_new(true)
+            .open("/.vita-i009b1-write-fixture/uid1000-probe") {
+            Err(e) if e.raw_os_error() == Some(Errno::EROFS as i32) => {
+                serial("VITA_I009B1_NONROOT_ROOT_WRITE_DENIED uid=1000 errno=EROFS");
+            }
+            Ok(_) => {
+                let _ = fs::remove_file("/.vita-i009b1-write-fixture/uid1000-probe");
+                return Err(io::Error::other("nonroot could write permanent rootfs"));
+            }
+            Err(e) => return Err(io::Error::other(format!(
+                "nonroot rootfs write must return EROFS, got: {e}"
+            ))),
+        }
+    }
     fs::write("/tmp/.vita-i009b0-volatile-probe", b"vita-i009b0")?;
     if fs::read("/tmp/.vita-i009b0-volatile-probe")? != b"vita-i009b0" {
         return Err(io::Error::other("volatile /tmp read/write mismatch"));
@@ -415,13 +483,18 @@ impl Budget {
     }
 }
 
-fn boot_pid1() -> io::Result<()> {
+fn boot_pid1(stage2: bool) -> io::Result<()> {
     if std::process::id() != 1 || !geteuid().is_root() {
         return Err(io::Error::other("Vita init must run as Linux root PID 1"));
     }
     serial("VITA_I006_GUEST_PID1_OK");
-    // /proc must be mounted before reading the kernel command line.
-    mount_runtime()?;
+    // Stage1 has moved these mounts into the separately mounted SquashFS.
+    // The direct initramfs I009a/b0 regressions keep their existing path.
+    if !stage2 {
+        mount_runtime()?;
+    } else {
+        verify_stage2_immutable_root()?;
+    }
     let flags = parse_boot_options(&fs::read_to_string("/proc/cmdline")?)?;
     verify_rootfs_ownership()?;
     mount_immutable_vita()?;
@@ -569,7 +642,8 @@ fn boot_pid1() -> io::Result<()> {
 fn main() {
     let args = std::env::args().collect::<Vec<_>>();
     let result = match args.get(1).map(String::as_str) {
-        None => boot_pid1(),
+        None => boot_pid1(false),
+        Some("--stage2") => boot_pid1(true),
         Some("--session-child") => session_child(args.get(2).is_some_and(|s| s == "--fixture-crash")),
         Some("--orphan-parent") => orphan_parent(args.get(2).is_some_and(|s| s == "--signal-pid1")),
         Some("--orphan-child") => orphan_child(args.get(2).is_some_and(|s| s == "--signal-pid1")),

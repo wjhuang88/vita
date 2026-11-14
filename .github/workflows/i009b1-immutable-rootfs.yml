@@ -1,0 +1,41 @@
+name: I009b1 Immutable Rootfs and Rust Stage1
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/i009b1-immutable-rootfs.yml"
+      - "scripts/ci/validate_i009b1_rootfs.sh"
+      - "scripts/ci/observe_i009b1_tamper.py"
+      - "scripts/ci/observe_i009a_crash.py"
+      - "prototypes/vita-stage1/**"
+      - "prototypes/vita-init/**"
+      - "prototypes/interaction-runtime/**"
+      - "scripts/ci/observe_i006_guest_session.py"
+      - "docs/iterations/I009b1-rootfs-stage1.md"
+      - "docs/backlog/active/VITA-001-C-live-os.md"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/validate_project_governance.sh .
+  immutable-rootfs-guest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check syntax
+        run: |
+          bash -n scripts/ci/validate_i009b1_rootfs.sh
+          python3 -m py_compile scripts/ci/observe_i006_guest_session.py scripts/ci/observe_i009a_crash.py scripts/ci/observe_i009b1_tamper.py
+      - name: Build real SquashFS and boot firmware ISO in BIOS and UEFI
+        run: bash scripts/ci/validate_i009b1_rootfs.sh
+      - name: Retain logs and provenance, not the ISO
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i009b1-rootfs-evidence
+          path: i009b1-rootfs-logs/
+          if-no-files-found: warn

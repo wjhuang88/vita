@@ -84,3 +84,7 @@ First I009b increment: [I009b0 iteration](../../iterations/I009b0-immutable-vita
 ## I009b0 status closure (2026-11-14)
 
 [I009b0 iteration](../../iterations/I009b0-immutable-vita-system.md) is **Complete only for the VM-only read-only `/vita` subtree**; kernel mounts deny root and UID1000 writes with `EROFS`, while volatile runtime remains usable and native Talos completes both firmware ISO boots. Original and final source heads each passed 14/14 checks. Full rootfs `/` is **still writable RAM-based initramfs**; [I009b1 #17](https://github.com/wjhuang88/vita/issues/17) tracks actual immutable image/switch_root and module inventory. Story C stays **Active**; the Rust PID1 candidate is not the final selection. Security, licensing, hardware and physical-media human acceptance remain **PENDING**.
+
+## I009b1 independent SquashFS root and Rust handoff (2026-11-14)
+
+[Issue #17](https://github.com/wjhuang88/vita/issues/17) / [I009b1 owner](../../iterations/I009b1-rootfs-stage1.md): genuine read-only rootfs and tiny Rust stage1->permanent PID1 handoff are being implemented and **not yet accepted** until BIOS/UEFI real-ISO guest plus exact-head AI review and CI. Input kernel and module sources are fixed to the existing Alpine ISO. The image is carried in RAM inside initramfs for a diskless fixture; not a full hardware rootfs, signed boot or final init selection.
