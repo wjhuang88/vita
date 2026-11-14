@@ -1,4 +1,4 @@
-//! I009b1: disposable early Linux init. Linux PID 1 execs permanent Rust
+//! I009b1/I009b2a: disposable early Linux init. PID 1 execs permanent Rust
 //! vita-init after moving a real, read-only squashfs root onto /.
 //! Never a privileged Agent tool or a production recovery implementation.
 #![deny(unsafe_op_in_unsafe_fn)]
@@ -9,15 +9,22 @@ use nix::mount::{mount, MsFlags};
 use nix::unistd::{chroot, getpid};
 use std::ffi::CStr;
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use sha2::{Digest, Sha256};
 use std::os::fd::AsRawFd;
 use std::os::unix::process::CommandExt;
 use std::process::Command;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+use std::path::Path;
 
-const IMAGE: &str = "/system.squashfs";
+const EMBEDDED_IMAGE: &str = "/system.squashfs";
+const MEDIA_IMAGE: &str = "/media/vita/system.squashfs";
+const MEDIA_DEVICE: &str = "/dev/sr0";
+const MEDIA_LABEL: &str = "VITA_I009B2";
+
+fn media_mode() -> bool { option_env!("VITA_ROOT_SOURCE") == Some("media") }
+fn image_path() -> &'static str { if media_mode() { MEDIA_IMAGE } else { EMBEDDED_IMAGE } }
 const EXPECTED_ROOT_IMAGE_SHA256: &str = env!("VITA_ROOTFS_SHA256");
 const LOOP_DEVICE: &str = "/dev/loop0";
 const NEW_ROOT: &str = "/newroot";
@@ -83,8 +90,55 @@ fn load_pinned_modules() -> io::Result<()> {
     Ok(())
 }
 
+/// I009b2a uses *only* the fixed QEMU ISO CD-ROM block device, not a
+/// block-device scan or model-supplied path. Check ISO9660 PVD and declared
+/// volume ID before trusting the mounted media or reading the root image.
+/// The image digest is independently embedded in this stage1 executable.
+fn mount_explicit_readonly_media() -> io::Result<()> {
+    let deadline = Instant::now() + Duration::from_secs(12);
+    while !Path::new(MEDIA_DEVICE).exists() {
+        if Instant::now() >= deadline {
+            return Err(io::Error::other("fixed ISO CD-ROM device /dev/sr0 did not appear"));
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+    let mut cdrom = File::open(MEDIA_DEVICE)?;
+    let pvd_offset = 16 * 2048_u64;
+    cdrom.seek(SeekFrom::Start(pvd_offset))?;
+    let mut pvd = [0_u8; 2048];
+    cdrom.read_exact(&mut pvd)?;
+    if pvd[0] != 1 || &pvd[1..6] != b"CD001" || pvd[6] != 1 {
+        return Err(io::Error::other("fixed ISO device has no ISO9660 primary descriptor"));
+    }
+    let volume = std::str::from_utf8(&pvd[40..72])
+        .map_err(|_| io::Error::other("invalid ISO volume ID"))?
+        .trim_end_matches(' ');
+    if volume != MEDIA_LABEL {
+        return Err(io::Error::other(format!("unexpected ISO volume label: {volume}")));
+    }
+    fs::create_dir_all("/media")?;
+    mount_fs(
+        MEDIA_DEVICE, "/media", "iso9660",
+        MsFlags::MS_RDONLY | MsFlags::MS_NOSUID |
+        MsFlags::MS_NODEV | MsFlags::MS_NOEXEC,
+        None,
+    )?;
+    let info = fs::read_to_string("/proc/self/mountinfo")?;
+    let mounted = info.lines().any(|line| {
+        let cols: Vec<_> = line.split_ascii_whitespace().collect();
+        cols.len() > 8 && cols[4] == "/media" &&
+            cols[5].split(',').any(|opt| opt == "ro") &&
+            line.contains(" - iso9660 ")
+    });
+    if !mounted || !fs::metadata(MEDIA_IMAGE)?.is_file() {
+        return Err(io::Error::other("ISO-backed readonly root image is missing"));
+    }
+    serial("VITA_I009B2_MEDIA_SOURCE_OK device=/dev/sr0 fstype=iso9660 readonly=1");
+    Ok(())
+}
+
 fn verify_image_hash() -> io::Result<()> {
-    let mut file = File::open(IMAGE)?;
+    let mut file = File::open(image_path())?;
     let mut hasher = Sha256::new();
     let mut buf = [0_u8; 64 * 1024];
     let mut total = 0_u64;
@@ -111,10 +165,10 @@ fn verify_image_hash() -> io::Result<()> {
 
 fn mount_root_image() -> io::Result<()> {
     verify_image_hash()?;
-    let source = File::open(IMAGE)?;
+    let source = File::open(image_path())?;
     let loop_fd = OpenOptions::new().read(true).open(LOOP_DEVICE)?;
     // SAFETY: LOOP_SET_FD takes a second argument holding an open fd.
-    // Both fds point to fixed, root-owned initramfs objects. This is the
+    // Both fds reference fixed, preverified image/device objects. This is the
     // one narrowly audited unsafe syscall boundary in stage-1.
     let result = unsafe {
         nix::libc::ioctl(loop_fd.as_raw_fd(), LOOP_SET_FD as _, source.as_raw_fd())
@@ -154,9 +208,16 @@ fn stage1() -> io::Result<()> {
     serial("VITA_I009B1_STAGE1_PID1_READY");
     early_mounts()?;
     load_pinned_modules()?;
+    if media_mode() { mount_explicit_readonly_media()?; }
     mount_root_image()?;
     for part in ["proc", "sys", "dev", "run", "tmp"] {
         move_mount(&format!("/{part}"), &format!("/newroot/{part}"))?;
+    }
+    // The loop backing file resides on the ISO9660 mount. Preserve this
+    // source mount across switch_root so the read-only backing stays valid.
+    if media_mode() {
+        move_mount("/media", "/newroot/media")?;
+        serial("VITA_I009B2_MEDIA_MOUNT_MOVED_OK");
     }
     // The root of a Linux initramfs is rootfs and cannot be pivot_root'ed.
     // Follow the switch_root MS_MOVE + chroot pattern while retaining PID 1.
@@ -183,6 +244,13 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fixed_root_source_has_no_block_scan_or_runtime_override() {
+        assert!(matches!(image_path(), "/system.squashfs" | "/media/vita/system.squashfs"));
+        assert_eq!(MEDIA_DEVICE, "/dev/sr0");
+        assert_eq!(MEDIA_LABEL, "VITA_I009B2");
+    }
 
     #[test]
     fn loop_device_constant_is_linux_loop_set_fd() {

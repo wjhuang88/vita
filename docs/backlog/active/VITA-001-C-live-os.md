@@ -94,3 +94,7 @@ First I009b increment: [I009b0 iteration](../../iterations/I009b0-immutable-vita
 [PR #19](https://github.com/wjhuang88/vita/pull/19) merged as `96713752`, with 17/17 checks, independent Copilot review and no unresolved findings. [QEMU run 43555621207](https://github.com/wjhuang88/vita/actions/runs/43555621207) confirms **real readonly SquashFS `/`** instead of I009b0's readonly `/vita`: both root and UID 1000 writes fail EROFS, real BIOS/UEFI boot to Talos, stage1 verified image SHA, kernel module/TTY/PID1 continuity, negative tamper rejection, and lifecycle fault scenarios all passed. [Iteration owner and limits](../../iterations/I009b1-rootfs-stage1.md).
 
 **Story C remains Active** for optimized immutable-media mapping, full Linux devices/services, PID1 benchmark/choice, secure recovery, persistence and human hardware, licensing and release review. No product safety approval is implied by AI review.
+
+## I009b2a media-backed readonly root source (2026-11-14)
+
+[Issue #21](https://github.com/wjhuang88/vita/issues/21) / [I009b2a design and proof](../../iterations/I009b2a-media-rootfs.md): stage1 will mount a fixed **readonly ISO9660 /dev/sr0** and use the independent SquashFS file **from the ISO, not initramfs RAM**; old I009b1 embedded path remains a regression. This is a bounded QEMU engineering candidate, **not accepted without BIOS+UEFI guest evidence, negative tamper, full lifecycle CI and separate AI review**. Measurements, final Rust-vs-Dinit/Finit, hardware and release gates remain open.

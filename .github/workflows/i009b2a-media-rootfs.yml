@@ -1,0 +1,43 @@
+name: I009b2a ISO-media-backed Immutable Rootfs
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/i009b2a-media-rootfs.yml"
+      - ".github/workflows/i009b1-immutable-rootfs.yml"
+      - "scripts/ci/validate_i009b2a_media_rootfs.sh"
+      - "scripts/ci/validate_i009b1_rootfs.sh"
+      - "scripts/ci/observe_i009b1_tamper.py"
+      - "scripts/ci/observe_i006_guest_session.py"
+      - "scripts/ci/observe_i009a_crash.py"
+      - "prototypes/vita-stage1/**"
+      - "prototypes/vita-init/**"
+      - "prototypes/interaction-runtime/**"
+      - "docs/iterations/I009b2a-media-rootfs.md"
+      - "docs/backlog/active/VITA-001-C-live-os.md"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/validate_project_governance.sh .
+  media-rootfs-guest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate bounded media guest fixture
+        run: |
+          bash -n scripts/ci/validate_i009b1_rootfs.sh
+          bash -n scripts/ci/validate_i009b2a_media_rootfs.sh
+      - name: Boot real BIOS/UEFI ISO with rootfs on readonly CD-ROM
+        run: bash scripts/ci/validate_i009b2a_media_rootfs.sh
+      - name: Retain provenance and serial logs, never release ISO
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i009b2a-media-rootfs-evidence
+          path: i009b2-media-logs/
+          if-no-files-found: warn
