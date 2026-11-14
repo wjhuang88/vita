@@ -198,6 +198,48 @@ fn verify_rootfs_ownership() -> io::Result<()> {
     Ok(())
 }
 
+/// Stage2 is reached via stage1's switch_root + exec at PID 1, not a new
+/// process. Verify the *root mount* is genuinely SquashFS and read-only,
+/// rather than accepting the I009b0 /vita-only bind-remount proof.
+fn verify_stage2_immutable_root() -> io::Result<()> {
+    if std::process::id() != 1 {
+        return Err(io::Error::other("stage2 was not exec'd into PID 1"));
+    }
+    let mounts = fs::read_to_string("/proc/self/mountinfo")?;
+    let found = mounts.lines().any(|line| {
+        let words: Vec<_> = line.split_ascii_whitespace().collect();
+        words.len() > 8 && words[4] == "/" &&
+        words[5].split(',').any(|opt| opt == "ro") &&
+        line.contains(" - squashfs ")
+    });
+    if !found {
+        return Err(io::Error::other("stage2 '/' is not a read-only squashfs mount"));
+    }
+    match OpenOptions::new().write(true).create_new(true).open("/.vita-rootfs-write-probe") {
+        Err(error) if error.raw_os_error() == Some(Errno::EROFS as i32) => {}
+        Ok(_) => {
+            let _ = fs::remove_file("/.vita-rootfs-write-probe");
+            return Err(io::Error::other("stage2 rootfs unexpectedly writable"));
+        }
+        Err(error) => return Err(io::Error::other(format!(
+            "unexpected root write-probe errno: {error}"
+        ))),
+    }
+    let mounted = fs::read_to_string("/proc/mounts")?;
+    for (path, typ) in [("/proc", "proc"), ("/sys", "sysfs"),
+        ("/dev", "devtmpfs"), ("/run", "tmpfs"), ("/tmp", "tmpfs")] {
+        if !mounted.lines().any(|line| {
+            let w: Vec<_> = line.split_ascii_whitespace().collect();
+            w.len() > 2 && w[1] == path && w[2] == typ
+        }) {
+            return Err(io::Error::other(format!("stage2 mount not moved: {path}")));
+        }
+    }
+    serial("VITA_I009B1_ROOT_MOUNT_READONLY_OK path=/ fstype=squashfs errno=EROFS pid=1");
+    serial("VITA_I009B1_SWITCH_ROOT_PID1_CONTINUITY_OK");
+    Ok(())
+}
+
 /// This is an explicit VM-only device-owner handoff; production login/TTY ACL
 /// policy belongs to the separately tested session manager.
 fn configure_fixture_tty() -> io::Result<()> {
@@ -415,13 +457,18 @@ impl Budget {
     }
 }
 
-fn boot_pid1() -> io::Result<()> {
+fn boot_pid1(stage2: bool) -> io::Result<()> {
     if std::process::id() != 1 || !geteuid().is_root() {
         return Err(io::Error::other("Vita init must run as Linux root PID 1"));
     }
     serial("VITA_I006_GUEST_PID1_OK");
-    // /proc must be mounted before reading the kernel command line.
-    mount_runtime()?;
+    // Stage1 has moved these mounts into the separately mounted SquashFS.
+    // The direct initramfs I009a/b0 regressions keep their existing path.
+    if !stage2 {
+        mount_runtime()?;
+    } else {
+        verify_stage2_immutable_root()?;
+    }
     let flags = parse_boot_options(&fs::read_to_string("/proc/cmdline")?)?;
     verify_rootfs_ownership()?;
     mount_immutable_vita()?;
@@ -569,7 +616,8 @@ fn boot_pid1() -> io::Result<()> {
 fn main() {
     let args = std::env::args().collect::<Vec<_>>();
     let result = match args.get(1).map(String::as_str) {
-        None => boot_pid1(),
+        None => boot_pid1(false),
+        Some("--stage2") => boot_pid1(true),
         Some("--session-child") => session_child(args.get(2).is_some_and(|s| s == "--fixture-crash")),
         Some("--orphan-parent") => orphan_parent(args.get(2).is_some_and(|s| s == "--signal-pid1")),
         Some("--orphan-child") => orphan_child(args.get(2).is_some_and(|s| s == "--signal-pid1")),
