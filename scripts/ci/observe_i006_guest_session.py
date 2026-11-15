@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import socket
@@ -25,10 +26,28 @@ def require_regular(path: str) -> str:
     return str(target)
 
 
+def read_qemu_memory(pid: int) -> dict[str, int]:
+    """Host QEMU values from /proc/<pid>/status, never guest memory."""
+    try:
+        status = Path(f"/proc/{pid}/status").read_text(encoding="ascii")
+    except OSError:
+        return {}
+    values = {}
+    for line in status.splitlines():
+        if line.startswith(("VmRSS:", "VmHWM:")):
+            key, rest = line.split(":", 1)
+            try:
+                values[key.lower() + "_kib"] = int(rest.split()[0])
+            except (ValueError, IndexError):
+                pass
+    return values
+
+
 def observe(
     kernel: str | None, initrd: str | None, log_dir: str, timeout: int,
     final_marker: str | None = None, iso: str | None = None, firmware: str = "bios",
     required_markers: tuple[str, ...] = (), ctrl_c_exit: bool = False,
+    benchmark_json: str | None = None,
 ) -> None:
     # I006: direct-kernel path remains intact. I008: genuine ISO boot.
     if iso is None:
@@ -81,10 +100,20 @@ def observe(
         step = 0
         transcript = bytearray()
         started = time.monotonic()
+        benchmark = None if benchmark_json is None else {
+            "schema_version": 1, "firmware": firmware, "passed": False,
+            "qemu_command": command, "tty_ms": None, "prompt_ms": None,
+            "host_rss_at_prompt_kib": None, "guest_stats": None, "samples": [],
+        }
         with serial_log.open("wb") as serial_file, qemu_log.open("wb") as qemu_file:
             process = subprocess.Popen(command, stdout=qemu_file, stderr=subprocess.STDOUT)
             try:
                 while time.monotonic() - started < timeout:
+                    if benchmark is not None:
+                        sample = read_qemu_memory(process.pid)
+                        if sample:
+                            sample["elapsed_ms"] = round((time.monotonic() - started) * 1000)
+                            benchmark["samples"].append(sample)
                     if process.poll() is not None:
                         raise RuntimeError(f"QEMU quit before guest proof ({process.returncode})")
                     if client is None:
@@ -109,6 +138,28 @@ def observe(
                     if len(transcript) > MAX_LOG_BYTES:
                         raise RuntimeError("guest serial output exceeded 2MB limit")
                     output = transcript.decode("utf-8", errors="replace").replace("\r", "")
+                    if benchmark is not None:
+                        elapsed_ms = round((time.monotonic() - started) * 1000)
+                        if benchmark["tty_ms"] is None and "VITA_I009_CONTROLLING_TTY_OK" in output:
+                            benchmark["tty_ms"] = elapsed_ms
+                        if benchmark["prompt_ms"] is None and "vita> " in output:
+                            benchmark["prompt_ms"] = elapsed_ms
+                            current = read_qemu_memory(process.pid)
+                            benchmark["host_rss_at_prompt_kib"] = current.get("vmrss_kib")
+                        if benchmark["guest_stats"] is None:
+                            for line in output.splitlines():
+                                if "VITA_I009_BENCH_GUEST_STATS " in line:
+                                    fields = line.split("VITA_I009_BENCH_GUEST_STATS ", 1)[1]
+                                    raw = dict(item.split("=", 1) for item in fields.split() if "=" in item)
+                                    if raw.get("stage") == "pre_session":
+                                        benchmark["guest_stats"] = {
+                                            "stage": "pre_session",
+                                            "mem_total_kib": int(raw["mem_total_kib"]),
+                                            "mem_available_kib": int(raw["mem_available_kib"]),
+                                            "processes": int(raw["processes"]),
+                                            "uptime_s": float(raw["uptime_s"]),
+                                        }
+                                    break
                     if "VITA_I006_GUEST_SESSION_ERROR:" in output:
                         # Wait for the end of the failing guest line before
                         # terminating QEMU, otherwise a split recv() truncates
@@ -175,12 +226,27 @@ def observe(
                         missing = [item for item in expected if item not in output]
                         if missing or output.count("[turn:ok]") != 2:
                             raise RuntimeError(f"incomplete Talos guest proof: {missing}")
+                        if benchmark is not None:
+                            benchmark["passed"] = True
                         print("VITA_I006_LINUX_TALOS_GUEST_OK turns=2 errors=1", flush=True)
                         return
                 raise TimeoutError(f"guest session proof not reached within {timeout}s (step={step})")
             finally:
                 if client is not None:
                     client.close()
+                if benchmark is not None:
+                    last_sample = read_qemu_memory(process.pid)
+                    if last_sample:
+                        last_sample["elapsed_ms"] = round((time.monotonic() - started) * 1000)
+                        benchmark["samples"].append(last_sample)
+                    benchmark["duration_ms"] = round((time.monotonic() - started) * 1000)
+                    benchmark["host_peak_hwm_kib"] = max(
+                        (sample.get("vmhwm_kib", 0) for sample in benchmark["samples"]),
+                        default=0,
+                    )
+                    destination = Path(benchmark_json)
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.write_text(json.dumps(benchmark, indent=2, sort_keys=True) + "\n")
                 process.terminate()
                 try:
                     process.wait(timeout=5)
@@ -201,6 +267,7 @@ def main() -> int:
     parser.add_argument("--final-marker", default=None)
     parser.add_argument("--required-marker", action="append", default=[])
     parser.add_argument("--ctrl-c-exit", action="store_true")
+    parser.add_argument("--benchmark-json")
     args = parser.parse_args()
     if args.iso is not None:
         if args.kernel or args.initrd:
@@ -213,7 +280,7 @@ def main() -> int:
         observe(
             args.kernel, args.initrd, args.log_dir, args.timeout,
             args.final_marker, args.iso, args.firmware,
-            tuple(args.required_marker), args.ctrl_c_exit,
+            tuple(args.required_marker), args.ctrl_c_exit, args.benchmark_json,
         )
         return 0
     except Exception as error:
