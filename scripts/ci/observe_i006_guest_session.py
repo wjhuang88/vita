@@ -43,6 +43,25 @@ def read_qemu_memory(pid: int) -> dict[str, int]:
     return values
 
 
+def parse_guest_stats(output: str) -> dict | None:
+    """Return guest pre-session stats only after the entire serial line arrives."""
+    for line in output.split("\n")[:-1]:
+        if "VITA_I009_BENCH_GUEST_STATS " not in line:
+            continue
+        fields = line.split("VITA_I009_BENCH_GUEST_STATS ", 1)[1]
+        raw = dict(item.split("=", 1) for item in fields.split() if "=" in item)
+        if raw.get("stage") != "pre_session":
+            continue
+        return {
+            "stage": "pre_session",
+            "mem_total_kib": int(raw["mem_total_kib"]),
+            "mem_available_kib": int(raw["mem_available_kib"]),
+            "processes": int(raw["processes"]),
+            "uptime_s": float(raw["uptime_s"]),
+        }
+    return None
+
+
 def observe(
     kernel: str | None, initrd: str | None, log_dir: str, timeout: int,
     final_marker: str | None = None, iso: str | None = None, firmware: str = "bios",
@@ -147,19 +166,7 @@ def observe(
                             current = read_qemu_memory(process.pid)
                             benchmark["host_rss_at_prompt_kib"] = current.get("vmrss_kib")
                         if benchmark["guest_stats"] is None:
-                            for line in output.splitlines():
-                                if "VITA_I009_BENCH_GUEST_STATS " in line:
-                                    fields = line.split("VITA_I009_BENCH_GUEST_STATS ", 1)[1]
-                                    raw = dict(item.split("=", 1) for item in fields.split() if "=" in item)
-                                    if raw.get("stage") == "pre_session":
-                                        benchmark["guest_stats"] = {
-                                            "stage": "pre_session",
-                                            "mem_total_kib": int(raw["mem_total_kib"]),
-                                            "mem_available_kib": int(raw["mem_available_kib"]),
-                                            "processes": int(raw["processes"]),
-                                            "uptime_s": float(raw["uptime_s"]),
-                                        }
-                                    break
+                            benchmark["guest_stats"] = parse_guest_stats(output)
                     if "VITA_I006_GUEST_SESSION_ERROR:" in output:
                         # Wait for the end of the failing guest line before
                         # terminating QEMU, otherwise a split recv() truncates
@@ -234,26 +241,29 @@ def observe(
             finally:
                 if client is not None:
                     client.close()
-                if benchmark is not None:
-                    last_sample = read_qemu_memory(process.pid)
-                    if last_sample:
-                        last_sample["elapsed_ms"] = round((time.monotonic() - started) * 1000)
-                        benchmark["samples"].append(last_sample)
-                    benchmark["duration_ms"] = round((time.monotonic() - started) * 1000)
-                    benchmark["host_peak_hwm_kib"] = max(
-                        (sample.get("vmhwm_kib", 0) for sample in benchmark["samples"]),
-                        default=0,
-                    )
-                    destination = Path(benchmark_json)
-                    destination.parent.mkdir(parents=True, exist_ok=True)
-                    destination.write_text(json.dumps(benchmark, indent=2, sort_keys=True) + "\n")
-                process.terminate()
                 try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait()
-                print(f"VITA_I006_SERIAL_LOG={serial_log}", flush=True)
+                    if benchmark is not None:
+                        last_sample = read_qemu_memory(process.pid)
+                        if last_sample:
+                            last_sample["elapsed_ms"] = round((time.monotonic() - started) * 1000)
+                            benchmark["samples"].append(last_sample)
+                        benchmark["duration_ms"] = round((time.monotonic() - started) * 1000)
+                        benchmark["host_peak_hwm_kib"] = max(
+                            (sample.get("vmhwm_kib", 0) for sample in benchmark["samples"]),
+                            default=0,
+                        )
+                        destination = Path(benchmark_json)
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        destination.write_text(json.dumps(benchmark, indent=2, sort_keys=True) + "\n")
+                finally:
+                    # Persisting benchmark JSON is not allowed to leak a live VM.
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
+                    print(f"VITA_I006_SERIAL_LOG={serial_log}", flush=True)
 
 
 def main() -> int:
