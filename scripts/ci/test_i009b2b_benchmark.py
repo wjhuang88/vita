@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from benchmark_i009b2b import summarize
-from observe_i006_guest_session import read_qemu_memory
+from observe_i006_guest_session import read_qemu_memory, parse_guest_stats
 
 
 class BenchmarkTest(unittest.TestCase):
@@ -35,6 +35,17 @@ class BenchmarkTest(unittest.TestCase):
         self.assertEqual(
             groups["uefi/media"]["metrics"]["guest_pre_session_mem_available_kib"]["median"], 899
         )
+
+    def test_split_serial_stats_are_ignored_until_newline(self):
+        prefix = "VITA_I009_BENCH_GUEST_STATS stage=pre_session "
+        incomplete = prefix + "mem_total_kib=1024 "
+        self.assertIsNone(parse_guest_stats(incomplete))
+        almost = incomplete + "mem_available_kib=768 processes=4 uptime_s=12."
+        self.assertIsNone(parse_guest_stats(almost))
+        self.assertEqual(parse_guest_stats(almost + "34\n"), {
+            "stage": "pre_session", "mem_total_kib": 1024,
+            "mem_available_kib": 768, "processes": 4, "uptime_s": 12.34,
+        })
 
     def test_memory_probe_invalid_pid(self):
         self.assertEqual(read_qemu_memory(-42), {})
