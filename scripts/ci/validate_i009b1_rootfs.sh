@@ -268,10 +268,12 @@ if [[ "${VITA_I009_BENCH_BUILD_ONLY:-0}" == 1 ]]; then
   if [[ "$MEDIA_MODE" == 1 ]]; then
     cp "$VITA_ISO" "$BENCH_DIR/media.iso"
     cp "$LOG/root-image.bytes" "$BENCH_DIR/media-root.bytes"
+    cp "$LOG/root-image.sha256" "$BENCH_DIR/media-root.sha256"
     cp "$LOG/stage1-initramfs.bytes" "$BENCH_DIR/media-initramfs.bytes"
   else
     cp "$VITA_ISO" "$BENCH_DIR/embedded.iso"
     cp "$LOG/root-image.bytes" "$BENCH_DIR/embedded-root.bytes"
+    cp "$LOG/root-image.sha256" "$BENCH_DIR/embedded-root.sha256"
     cp "$LOG/stage1-initramfs.bytes" "$BENCH_DIR/embedded-initramfs.bytes"
   fi
   echo "VITA_I009B2B_BENCH_ISO_BUILT mode=$MEDIA_MODE"
