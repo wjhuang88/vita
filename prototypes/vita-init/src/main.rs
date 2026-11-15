@@ -528,8 +528,8 @@ fn boot_pid1(stage2: bool) -> io::Result<()> {
     configure_fixture_tty()?;
     serial("VITA_I009_PID1_MINIMAL_INIT_READY");
     // Only the disposable benchmark ISO adds this exact kernel parameter.
-    let bench_flag = fs::read_to_string("/proc/cmdline")?
-        .split_ascii_whitespace()
+    let bench_cmdline = fs::read_to_string("/proc/cmdline")?;
+    let bench_flag = bench_cmdline.split_ascii_whitespace()
         .filter(|word| word.starts_with("vita.i009.benchmark="))
         .collect::<Vec<_>>();
     if !bench_flag.is_empty() {
