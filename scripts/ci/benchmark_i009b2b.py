@@ -80,11 +80,14 @@ def main() -> int:
             "iso_sha256": sha256(path),
             "initramfs_bytes": int(path.with_name(f"{key}-initramfs.bytes").read_text().strip()),
             "root_squashfs_bytes": int(path.with_name(f"{key}-root.bytes").read_text().strip()),
+            "root_squashfs_sha256": path.with_name(f"{key}-root.sha256").read_text().split()[0],
         }
         for key, path in source_files.items()
     }
     if build_manifest["embedded"]["root_squashfs_bytes"] != build_manifest["media"]["root_squashfs_bytes"]:
         raise ValueError("comparison root images must have equal byte size")
+    if build_manifest["embedded"]["root_squashfs_sha256"] != build_manifest["media"]["root_squashfs_sha256"]:
+        raise ValueError("comparison root images must be byte-identical by SHA-256")
     context = {
         "schema_version": 1,
         "runner": platform.uname()._asdict(),
