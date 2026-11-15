@@ -10,7 +10,7 @@ Prerequisite: I009b2a media-root source [PR #22](https://github.com/wjhuang88/vi
 
 **Boundaries:** disposable QEMU only; read-only CD-ROM, no guest networking, no host disk passthrough, no physical USB writes. Rust PID1 remains **a candidate**, not final selection. Do not distribute/release generated ISO. Human firmware/security/source licenses/SBOM/recovery/hardware checks stay **PENDING**.
 
-**Build:** reuse the existing exact SHA-verified Alpine ISO/kernel and matching kernel modules. In opt-in benchmark mode only, export one *temporary* embedded-root ISO and one temporary media-root ISO. Runtime rootfs contents must be equal in bytes. The default I009b1/I009b2a full fault/tamper suite remains unchanged; benchmark build-only is restricted to a new disposable /tmp directory.
+**Build:** reuse the existing exact SHA-verified Alpine ISO/kernel and matching kernel modules. In opt-in benchmark mode only, export one *temporary* embedded-root ISO and one temporary media-root ISO. Runtime rootfs contents must be identical by both byte size and SHA-256 digest; mismatch fails the entire comparison. The default I009b1/I009b2a full fault/tamper suite remains unchanged; benchmark build-only is restricted to a new disposable /tmp directory.
 
 **Boot:** one GitHub-hosted x86_64 runner, same QEMU flags: TCG, 1024 MiB RAM, two vCPUs, no NIC, no monitor, no reboot. Separate BIOS and OVMF UEFI, three successful repetitions per source/firmware (12 successful runs total). Alternate embedded/media order each repetition to reduce systematic first-run bias. Real guest session runs two read-only Talos Tool turns, one handled model-error turn and quits cleanly; each run must prove correct readonly root, TTY and media mount markers.
 
