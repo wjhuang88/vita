@@ -233,6 +233,11 @@ menuentry "Vita experimental SquashFS root" {
     initrd /boot/stage1.cpio.gz
 }
 GRUB
+# Benchmark kernel marker has no effect in standard ISO tests.
+if [[ "${VITA_I009_BENCH_BUILD_ONLY:-0}" == 1 ]]; then
+  sed -i 's/vita.i009.test_orphan=1/vita.i009.test_orphan=1 vita.i009.benchmark=1/' \
+    "$ISO_TREE/boot/grub/grub.cfg"
+fi
 # grub-mkrescue owns -V (version); forward the *native xorriso*
 # volume-id option after its '--' separator to every generated ISO.
 iso_label_args=()
@@ -249,6 +254,28 @@ if [[ "$MEDIA_MODE" == 1 ]]; then
     fail "cannot inspect ISO9660 volume descriptor"
   grep -Fq VITA_I009B2 "$LOG/iso-volume-id.txt" ||
     fail "generated media ISO volume label mismatch"
+fi
+
+# I009b2b: opt-in, disposable benchmark fixture. Keep the default full
+# lifecycle/tamper validation unchanged. The exported ISO never enters CI
+# artifacts, and the destination must be a pre-created directory under /tmp.
+if [[ "${VITA_I009_BENCH_BUILD_ONLY:-0}" == 1 ]]; then
+  BENCH_DIR="${VITA_I009_BENCH_EXPORT_DIR:-}"
+  [[ -n "$BENCH_DIR" && -d "$BENCH_DIR" && ! -L "$BENCH_DIR" ]] ||
+    fail "benchmark build-only needs an existing non-symlink export directory"
+  BENCH_DIR="$(realpath -e "$BENCH_DIR")"
+  case "$BENCH_DIR" in /tmp/vita-i009b2b.*) ;; *) fail "unsafe benchmark export directory" ;; esac
+  if [[ "$MEDIA_MODE" == 1 ]]; then
+    cp "$VITA_ISO" "$BENCH_DIR/media.iso"
+    cp "$LOG/root-image.bytes" "$BENCH_DIR/media-root.bytes"
+    cp "$LOG/stage1-initramfs.bytes" "$BENCH_DIR/media-initramfs.bytes"
+  else
+    cp "$VITA_ISO" "$BENCH_DIR/embedded.iso"
+    cp "$LOG/root-image.bytes" "$BENCH_DIR/embedded-root.bytes"
+    cp "$LOG/stage1-initramfs.bytes" "$BENCH_DIR/embedded-initramfs.bytes"
+  fi
+  echo "VITA_I009B2B_BENCH_ISO_BUILT mode=$MEDIA_MODE"
+  exit 0
 fi
 
 for mode in bios uefi; do
