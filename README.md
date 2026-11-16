@@ -123,24 +123,23 @@ cargo +1.99.0 run --manifest-path prototypes/interaction-runtime/Cargo.toml -- -
 
 Use `:help` for commands; `demo:error` and `demo:slow` are fixtures for provider error and cancellation. Manual TTY/PTY, human security review and deferred Live OS recovery gates are tracked in the [I004 human acceptance checklist](docs/validation/I004-HUMAN-ACCEPTANCE.md).
 
-## Planned portable data layout
+## Planned portable data layout — separate system and user images
 
-The following is the **Phase 1 logical contract**, not a ready-to-flash image:
+**Revised product boundary (2026-11-16):** Vita system/rootfs images **do not live alongside user-uploaded ISO/IMG files**. The older `/iso/vita/vita-live.iso` used in I001 was a disposable boot probe only, not a product layout.
 
 ```text
-/iso/
-  vita/vita-live.iso       # default Vita image (not yet published)
-  other-rescue.iso         # user-managed boot images
-/talos/
-  config/models.toml       # model/provider references
-  config/agent.toml        # agent settings and policy
-  skills/
-  workspace/
-  logs/
-/ventoy/ventoy.json        # boot-menu configuration
+Ventoy P1 (user data):   /iso/         # user's boot ISO/IMG/WIM/VHD images only
+                         /talos/       # user configuration, skills, workspace
+                         /ventoy/      # upstream Ventoy config / small boot pointer
+Ventoy P2 (VTOYEFI):     Ventoy-owned   # never repurpose
+Vita P3 (system):        /boot/        # Vita-owned boot resources (planned)
+                         /versions/    # versioned readonly system rootfs (planned)
+                         /recovery/    # separately governed recovery (planned)
 ```
 
-The normal data-preserving upgrade goal is to replace Vita-owned images/configuration while retaining user ISO files and the `/talos` workspace. See [USB layout](docs/reference/USB-LAYOUT.md) and [configuration contract](docs/reference/CONFIG-CONTRACT.md).
+P3 would be created from Ventoy **reserved disk space at initial provisioning**, without modifying Ventoy P1/P2. A real *default* Vita boot entry from P3, BIOS/UEFI compatibility and migration are [unproven and tracked by #27](https://github.com/wjhuang88/vita/issues/27). Existing co-located boot fixture scripts remain historical CI evidence, **not product installer behavior**. No real USB writes, signed boot or secure production release are approved yet.
+
+System upgrades must target Vita system storage and preserve *all* user ISO images and `/talos` data; user-image operations must not touch system boot/rootfs. See [ADR-0009](docs/decisions/ADR-0009-system-user-image-isolation.md), [USB layout](docs/reference/USB-LAYOUT.md) and [configuration contract](docs/reference/CONFIG-CONTRACT.md).
 
 ## Design principles
 
