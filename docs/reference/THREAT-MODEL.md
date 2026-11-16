@@ -16,6 +16,10 @@
 5. Privilege confusion between Talos runtime, capability providers and recovery shell.
 6. Compromised network/model endpoint influencing system actions.
 
+## System/user image boundary (2026-11-16)
+
+Vita system image/kernel/rootfs/rollback artifacts **must not share the user-imported ISO namespace or update target**. [ADR-0009](../decisions/ADR-0009-system-user-image-isolation.md) requires a separately identified P3 Vita-system domain and P1 user-image domain; neither a matching `vita-live.iso` name nor a user-writable Ventoy menu entry is system identity. Treat P1 boot-menu/config manipulation, malicious user images, absent/ambiguous P3, unexpected symlinks, tampered manifests, interrupted updates and cross-partition copy/write bugs as explicit threats. The system entry must fail closed and system update must not write user ISO files; no automatic host-disk scan/mount. Separate partitions are not signature verification or full-disk security. Disposable-loop proof, human physical-media and Secure Boot acceptance remain required under [#27](https://github.com/wjhuang88/vita/issues/27).
+
 ## Required mitigations for first release
 - Explicit target identity for writes.
 - Typed capability allowlist and risk classes.
