@@ -483,6 +483,47 @@ impl Budget {
     }
 }
 
+// I009b2b VM-only, opt-in: guest-side memory/process baseline *before*
+// the Talos session is spawned. Never label this as post-prompt idle RAM.
+fn report_benchmark_guest_baseline() -> io::Result<()> {
+    let mem = fs::read_to_string("/proc/meminfo")?;
+    let parse_kib = |name: &str| -> io::Result<u64> {
+        mem.lines()
+            .find_map(|line| {
+                let (key, value) = line.split_once(':')?;
+                (key == name).then(|| value.split_whitespace().next()?.parse::<u64>().ok()).flatten()
+            })
+            .ok_or_else(|| io::Error::other(format!("missing numeric {name} in guest meminfo")))
+    };
+    let total = parse_kib("MemTotal")?;
+    let available = parse_kib("MemAvailable")?;
+    let processes = fs::read_dir("/proc")?
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_name().to_string_lossy().bytes().all(|b| b.is_ascii_digit()))
+        .count();
+    let uptime = fs::read_to_string("/proc/uptime")?;
+    let uptime_s = uptime.split_whitespace().next()
+        .ok_or_else(|| io::Error::other("missing guest uptime"))?;
+    serial(&format!(
+        "VITA_I009_BENCH_GUEST_STATS stage=pre_session mem_total_kib={total} mem_available_kib={available} processes={processes} uptime_s={uptime_s}"
+    ));
+    Ok(())
+}
+
+/// Only the explicit VM benchmark image may request read-only stats.
+fn benchmark_requested(cmdline: &str) -> io::Result<bool> {
+    let mut requested = false;
+    for word in cmdline.split_ascii_whitespace() {
+        if word == "vita.i009.benchmark" || word.starts_with("vita.i009.benchmark=") {
+            if requested || word != "vita.i009.benchmark=1" {
+                return Err(io::Error::other("invalid or duplicate VM benchmark option"));
+            }
+            requested = true;
+        }
+    }
+    Ok(requested)
+}
+
 fn boot_pid1(stage2: bool) -> io::Result<()> {
     if std::process::id() != 1 || !geteuid().is_root() {
         return Err(io::Error::other("Vita init must run as Linux root PID 1"));
@@ -500,6 +541,11 @@ fn boot_pid1(stage2: bool) -> io::Result<()> {
     mount_immutable_vita()?;
     configure_fixture_tty()?;
     serial("VITA_I009_PID1_MINIMAL_INIT_READY");
+    // Only the disposable benchmark ISO adds this exact kernel parameter.
+    let bench_cmdline = fs::read_to_string("/proc/cmdline")?;
+    if benchmark_requested(&bench_cmdline)? {
+        report_benchmark_guest_baseline()?;
+    }
 
     let stopping = Arc::new(AtomicBool::new(false));
     flag::register(SIGTERM, stopping.clone())?;
@@ -662,6 +708,24 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn benchmark_option_is_single_explicit_vm_fixture_only() {
+        assert!(!benchmark_requested("console=ttyS0 vita.i009.test_orphan=1").unwrap());
+        assert!(benchmark_requested("console=ttyS0 vita.i009.benchmark=1").unwrap());
+        for bad in [
+            "vita.i009.benchmark",
+            "vita.i009.benchmark=",
+            "vita.i009.benchmark=0",
+            "vita.i009.benchmark=true",
+            "vita.i009.benchmark=2",
+            "vita.i009.benchmark=1 vita.i009.benchmark=1",
+            "vita.i009.benchmark=1 vita.i009.benchmark=0",
+            "vita.i009.benchmark=0 vita.i009.benchmark=1",
+        ] {
+            assert!(benchmark_requested(bad).is_err(), "{bad}");
+        }
+    }
 
     #[test]
     fn boot_options_reject_recovery_and_ambiguous_fixture() {

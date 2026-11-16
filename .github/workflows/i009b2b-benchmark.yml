@@ -1,0 +1,48 @@
+name: I009b2b Same-Runner ISO Source Benchmark
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/i009b2b-benchmark.yml"
+      - "scripts/ci/validate_i009b2b_benchmark.sh"
+      - "scripts/ci/benchmark_i009b2b.py"
+      - "scripts/ci/test_i009b2b_benchmark.py"
+      - "scripts/ci/validate_i009b1_rootfs.sh"
+      - "scripts/ci/validate_i009b2a_media_rootfs.sh"
+      - "scripts/ci/observe_i006_guest_session.py"
+      - "prototypes/vita-stage1/**"
+      - "prototypes/vita-init/**"
+      - "prototypes/interaction-runtime/**"
+      - "docs/iterations/I009b2b-benchmark.md"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/validate_project_governance.sh .
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and metrics-unit tests (no VM needed)
+        run: |
+          bash -n scripts/ci/validate_i009b1_rootfs.sh
+          bash -n scripts/ci/validate_i009b2a_media_rootfs.sh
+          bash -n scripts/ci/validate_i009b2b_benchmark.sh
+          python3 -m py_compile scripts/ci/benchmark_i009b2b.py scripts/ci/observe_i006_guest_session.py
+          python3 -m unittest discover -s scripts/ci -p 'test_i009b2b_benchmark.py' -v
+      - name: Build pinned BIOS/UEFI ISOs and execute 12 real Talos workload boots
+        run: bash scripts/ci/validate_i009b2b_benchmark.sh
+      - name: Keep machine-readable benchmarks and serial/provenance, never ISO binaries
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i009b2b-same-runner-benchmark
+          path: |
+            i009b2b-benchmark-logs/
+            i009b1-rootfs-logs/
+            i009b2-media-logs/
+          if-no-files-found: warn
