@@ -1,6 +1,6 @@
 # VITA-001-C — Operator can boot the project Live OS
 
-Status: Active (I008/I009a/I009b0/I009b1/I009b2a VM slices merged; full Linux services, final init and release gates OPEN)
+Status: Active (I008/I009a/I009b0/I009b1/I009b2a/I009b2b VM slices merged; full Linux services, init comparison/choice and release gates OPEN)
 
 
 As an operator,
@@ -102,4 +102,12 @@ First I009b increment: [I009b0 iteration](../../iterations/I009b0-immutable-vita
 
 ## I009b2b controlled source benchmark — implementation PR #24 (2026-11-15)
 
-[I009b2b owner and acceptance](../../iterations/I009b2b-benchmark.md) / [PR #24](https://github.com/wjhuang88/vita/pull/24) extend the media-backed VM proof into a shared-runner, twelve-boot BIOS/OVMF UEFI comparison against I009b1. Build sources share pinned Alpine/kernel and identical-by-SHA SquashFS, while QEMU executes the same native non-root Talos workload in alternating source order. The benchmark records host boot-to-tty/prompt, QEMU VmRSS/HWM, **guest pre-session** (not idle) memory and processes, plus raw samples and provenance. **Status: in review / exact-head CI; no accepted measurements or product performance claim yet**. Default full rootfs/lifecycle/tamper regressions remain mandatory. Dinit/Finit selection, post-prompt guest peak/idle, physical media/security/SBOM/recovery and release gates remain OPEN.
+[I009b2b owner and acceptance](../../iterations/I009b2b-benchmark.md) / [PR #24](https://github.com/wjhuang88/vita/pull/24) extend the media-backed VM proof into a shared-runner, twelve-boot BIOS/OVMF UEFI comparison against I009b1. Build sources share pinned Alpine/kernel and identical-by-SHA SquashFS, while QEMU executes the same native non-root Talos workload in alternating source order. The benchmark records host boot-to-tty/prompt, QEMU VmRSS/HWM, **guest pre-session** (not idle) memory and processes, plus raw samples and provenance. **Historical proposal status when PR #24 opened; superseded by the final evidence below.** Default full rootfs/lifecycle/tamper regressions remain mandatory. Dinit/Finit selection, post-prompt guest peak/idle, physical media/security/SBOM/recovery and release gates remain OPEN.
+
+## I009b2b VM-only benchmark closure (2026-11-16)
+
+[PR #24](https://github.com/wjhuang88/vita/pull/24) merged to `main` as `8f88e3f2872d9010f25362368c01af91818f98dd` after **20/20 exact-head checks**, including [12 true BIOS/OVMF UEFI Talos sessions and provenance](https://github.com/wjhuang88/vita/actions/runs/43797290307), all I009b1/I009b2a lifecycle/tamper regressions, and a separately executed Copilot review on code HEAD `a7dc7db` reporting **zero open issues** with all four historical review threads resolved.
+
+The measured two sources have an **identical-by-SHA** 5,079,040 B read-only SquashFS root. Media-backed early initramfs was **501,180 B** versus embedded-root **5,433,116 B** in the same controlled build; this does **not** prove faster startup or lower memory. Three samples per firmware/source under TCG showed BIOS prompt medians 5,606 ms embedded / 5,399 ms media; UEFI 5,784 ms embedded / 5,846 ms media, with host QEMU VmHWM and guest **pre-session** MemAvailable captured separately. The raw 12-run artifact, runner/kernel versions, median ranges, original guest logs, limitations and exact head are recorded in the [I009b2b iteration owner](../../iterations/I009b2b-benchmark.md) and [artifact #14195141657](https://github.com/wjhuang88/vita/actions/runs/43797290307/artifacts/14195141657).
+
+**Only I009b2b controlled VM benchmark is Complete. Story C remains Active.** Parent [I009b2 #21](https://github.com/wjhuang88/vita/issues/21) remains open; next [I009b2c #25](https://github.com/wjhuang88/vita/issues/25) evaluates Rust/Dinit/Finit under matched workload and faults before final PID 1 selection. Guest post-prompt RAM/peak, complete driver/service inventory, physical ISO/USB mapping, signed boot, source-license/SBOM, authenticated recovery, durability and product/human-release gates are **OPEN / PENDING** in [human acceptance](../../validation/I009b2b-HUMAN-ACCEPTANCE.md).
