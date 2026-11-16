@@ -11,3 +11,4 @@ Current:
 - ADR-0006 — Alpine Linux/musl first Live base and direct Linux kernel/Rust init prototype (not a release claim).
 - ADR-0007 — VM-only kernel-selected offline recovery, volatile Linux mounts and root-shell trust boundary.
 - ADR-0008 — **Accepted product direction:** small-and-complete Rust-first Agent-native Linux; final PID 1 selection OPEN pending I009 comparison.
+- ADR-0009 — **Accepted system/user image isolation:** Vita-owned OS payload on separate protected system volume (P3 target); user ISO/IMG stays on Ventoy P1. P3 default-boot VM proof OPEN under #27; amends ADR-0004 placement without changing its Ventoy choice.
