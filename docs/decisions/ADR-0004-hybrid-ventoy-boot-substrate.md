@@ -2,6 +2,8 @@
 
 Status: Accepted for Phase 1. VITA-001-A's deterministic BIOS/UEFI QEMU boot-stub proof passed on 2026-11-03; full Live OS and physical-media gates remain open.
 
+> **Product placement amendment (2026-11-16):** [ADR-0009](ADR-0009-system-user-image-isolation.md) supersedes this ADR's **co-located** `/iso/vita/vita-live.iso` product image placement. Vita-owned system image/rootfs/update assets must be kept in a **separate Vita-system domain (P3 target)**, while user ISO/IMG assets remain in Ventoy P1 `/iso`. The historical I001 P1 probe and its originally recorded paths remain valid **engineering evidence only**. Ventoy's unmodified boot-substrate choice is unchanged; P3 default-boot integration is an unproven [#27](https://github.com/wjhuang88/vita/issues/27) engineering gate.
+
 ## Context
 
 Vita must boot arbitrary ISO images from removable media and also boot a project-owned Live OS. ISO compatibility is required, but the differentiating product surface is the Vita Live environment and Talos-based interaction runtime rather than bootloader compatibility engineering.
