@@ -7,6 +7,10 @@ Owner: [ADR-0008](../decisions/ADR-0008-linux-init-service-supervision.md); work
 
 **A small, beautiful, functionally complete Linux whose primary human interface is the native Vita/Talos Agent.** Full Linux functionality means kernel/driver/device/network/storage/users/process/software capability, not a large packaged distro or desktop. Minimal shipped software and Rust-native system capabilities are first-class goals alongside safety and reliability.
 
+### Media ownership and trust domains (2026-11-16)
+
+[ADR-0009](../decisions/ADR-0009-system-user-image-isolation.md) distinguishes the **Vita-owned system image** (protected versioned P3 storage target) from **user-uploaded ISO/IMG boot content** (Ventoy P1 `/iso`) and separate Talos user state. The system boot path must not source a trusted root from user images or fall back to user filename matches. System update/rollback and user image import/delete must have non-overlapping authorized write targets. P3 default boot and physical media migration are [unverified #27](https://github.com/wjhuang88/vita/issues/27), not covered by I009b2b's read-only optical ISO QEMU benchmark.
+
 ### Trust and process boundaries
 
 ```text
