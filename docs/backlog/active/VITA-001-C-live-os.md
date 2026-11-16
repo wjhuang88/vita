@@ -3,6 +3,10 @@
 Status: Active (I008/I009a/I009b0/I009b1/I009b2a/I009b2b VM slices merged; full Linux services, init comparison/choice and release gates OPEN)
 
 
+## Storage ownership correction (2026-11-16)
+
+Per [ADR-0009](../../decisions/ADR-0009-system-user-image-isolation.md), the Vita-owned kernel, initramfs, immutable rootfs and rollback/recovery image assets belong to an **independently managed Vita-system domain** (dedicated P3 target), not `/iso/vita/vita-live.iso` under Ventoy's user-image partition. User imported ISO/IMG boot content remains confined to Ventoy P1 `/iso`; user `/talos` state is not a system upgrade target. The existing I009b2 optical `/dev/sr0` guest proof is *not* a multi-partition USB layout. [#27](https://github.com/wjhuang88/vita/issues/27) must validate BIOS/UEFI P3 default boot, failure cases and update isolation before physical-media/product acceptance. Original I001 co-located boot fixtures remain historical and unchanged.
+
 As an operator,
 I want a directly bootable Live OS on the USB,
 so that I can diagnose and operate a machine even when no external ISO is selected.
