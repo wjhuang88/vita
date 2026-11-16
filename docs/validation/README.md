@@ -11,3 +11,4 @@ Each check should record the exact commit SHA, environment, redacted evidence an
 - [I008 GRUB ISO Firmware/Talos Human Acceptance](I008-HUMAN-ACCEPTANCE.md): licensing, hardware, TTY and security/recovery approvals.
 - [I009a Minimal Init & Agent Session](I009a-HUMAN-ACCEPTANCE.md): independent PID 1, real TTY, source licensing and physical security approval gates.
 - [I009b2a ISO Media Root](I009b2a-HUMAN-ACCEPTANCE.md): physical device/source trust, signed boot, licensing, media removal, recovery and release human gates.
+- [I009b2b source-benchmark human/product gates](I009b2b-HUMAN-ACCEPTANCE.md): VM timing/memory versus real hardware, source trust, guest post-Talos RAM, signed firmware, licensing/SBOM, secure recovery and init selection all PENDING.
