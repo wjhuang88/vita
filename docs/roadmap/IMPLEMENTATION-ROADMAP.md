@@ -5,6 +5,10 @@
 - Prove boot substrate choice.
 - Inspect Talos Core integration surface.
 
+## Cross-cutting disk image separation change (2026-11-16)
+
+[ADR-0009](../decisions/ADR-0009-system-user-image-isolation.md) requires Vita-owned OS images/rootfs/rollback assets to reside in a **protected system domain (P3 target)** distinct from user ISO/IMG content on Ventoy P1 `/iso`. [Issue #27](https://github.com/wjhuang88/vita/issues/27) must prove separately bootable P3 Vita in BIOS/UEFI, user ISO launch on P1, no cross-domain updates, reserved-space partitioning under disposable loop targets, and safe migration before any physical provisioning/release claims. The legacy co-located I001 boot probe remains historical only.
+
 ## Stage 1 — Bootable foundation
 - Build USB image layout.
 - Boot project Live OS in QEMU.

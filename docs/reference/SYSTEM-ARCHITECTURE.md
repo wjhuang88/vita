@@ -46,6 +46,10 @@ This does not imply replacing Linux, firmware, the boot substrate, required nati
 ## Why not just Talos CLI
 A CLI launched from bash leaves bash as the primary environment and tends to inherit CLI-era assumptions. The project instead needs a reusable runtime boundary built on Talos Core so boot/session lifecycle, system context, privileges, policy and audit are first-class.
 
+## System image versus user image storage
+
+[ADR-0009](../decisions/ADR-0009-system-user-image-isolation.md) separates **Vita-owned OS payloads** (protected, versioned system storage domain, P3 target) from **user-imported ISO/IMG files** (Ventoy P1 `/iso`). The dedicated system entry is not a user-upload ISO and cannot be chosen by filename fallback; portable Talos data is a third ownership namespace. The old I001 co-located test images remain a historical boot probe, **not** the product layout. Cross-partition default BIOS/UEFI boot is [unproven #27](https://github.com/wjhuang88/vita/issues/27), and real media writes remain human-gated.
+
 ## Boot boundary
 VITA-001-A completed its Phase 1 boot decision and deterministic BIOS/UEFI VM proof. The selected approach is a pinned, unmodified Ventoy compatibility substrate with Vita-owned Live OS and runtime above it (ADR-0004). The proof used boot-stub ISO images, not a finished Live Linux OS or a real distribution compatibility matrix; physical firmware and Secure Boot remain open gates.
 

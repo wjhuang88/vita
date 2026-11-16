@@ -2,6 +2,8 @@
 
 The selected Phase 1 design uses a pinned, unmodified Ventoy boot compatibility substrate, with Vita owning the future Live OS and its default boot entry.
 
+> **Historical I001 fixture only.** This probe writes the Vita stub ISO and user stub ISO to the same Ventoy P1 directory tree so that the original 2026-11-03 BIOS/UEFI baseline remains reproducible. The **product** now requires a separate Vita-system storage domain (P3 target) and user images only on P1, per [ADR-0009](../../docs/decisions/ADR-0009-system-user-image-isolation.md) and [#27](https://github.com/wjhuang88/vita/issues/27). Neither this fixture nor `ventoy/ventoy.json` is an approved product disk layout, default P3 boot path or physical installer.
+
 - Product boot configuration: [ventoy/ventoy.json](ventoy/ventoy.json)
 - Default configured ISO path: `/iso/vita/vita-live.iso`
 - User ISO discovery root: `/iso`
