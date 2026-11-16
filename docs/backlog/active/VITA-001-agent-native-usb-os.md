@@ -12,6 +12,10 @@ The Live OS is not “a toolbox containing Talos”. Talos Core provides the pri
 ## Cross-cutting implementation constraint
 The Vita-owned OS interaction, capability broker, system providers, config and audit are Rust-first per [ADR-0005](../../decisions/ADR-0005-rust-first-system-capabilities.md). Avoid extra application-language runtimes or routine shell command pipelines in the normal Live OS path; exceptions must be explicit and reviewed. This does not mandate rewriting Linux or proven boot software in Rust.
 
+## Cross-cutting image ownership invariant (2026-11-16)
+
+[ADR-0009](../../decisions/ADR-0009-system-user-image-isolation.md) supersedes the old shared `/iso/vita/vita-live.iso` product placement. The Vita-owned boot/rootfs/version/recovery artifacts belong to an independently managed/protected **system volume** (separate P3 target); user-uploaded boot images belong **only** to Ventoy P1 `/iso/`, and portable `/talos/` files are never system update targets. Distinct default system entry, non-destructive updates and fail-closed missing/tampered system volume are required. P3/default-boot feasibility is tracked by [#27](https://github.com/wjhuang88/vita/issues/27); I001's old colocated probe remains a historical VM fixture, not product acceptance. No physical disk writes are authorized.
+
 ## Scope
 - Portable boot foundation.
 - ISO discovery/boot path.
