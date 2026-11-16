@@ -59,6 +59,20 @@ def summarize(records: list[dict]) -> dict:
     return groups
 
 
+def verify_source_identity(source: str, transcript: str) -> None:
+    """Fail if the observed boot source disagrees with the compared label."""
+    media_markers = ("VITA_I009B2_MEDIA_SOURCE_OK", "VITA_I009B2_MEDIA_MOUNT_MOVED_OK")
+    seen = {marker for marker in media_markers if marker in transcript}
+    if source == "embedded":
+        if seen:
+            raise ValueError("embedded comparison boot emitted ISO-media source markers")
+    elif source == "media":
+        if seen != set(media_markers):
+            raise ValueError("media comparison boot missing ISO-media source markers")
+    else:
+        raise ValueError(f"unsupported root source {source!r}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--embedded", type=Path, required=True)
@@ -88,6 +102,8 @@ def main() -> int:
         raise ValueError("comparison root images must have equal byte size")
     if build_manifest["embedded"]["root_squashfs_sha256"] != build_manifest["media"]["root_squashfs_sha256"]:
         raise ValueError("comparison root images must be byte-identical by SHA-256")
+    if build_manifest["embedded"]["iso_sha256"] == build_manifest["media"]["iso_sha256"]:
+        raise ValueError("embedded and ISO-media source artifacts are unexpectedly identical")
     context = {
         "schema_version": 1,
         "runner": platform.uname()._asdict(),
@@ -127,6 +143,9 @@ def main() -> int:
                     ])
                 print(f"VITA_I009B2B_RUN firmware={firmware} source={source} repetition={repetition}", flush=True)
                 subprocess.run(cmd, check=True)
+                verify_source_identity(source, (case_dir / "guest-serial.log").read_text(
+                    encoding="utf-8", errors="replace"
+                ))
                 raw = json.loads(metrics.read_text())
                 required = ("tty_ms", "prompt_ms", "host_rss_at_prompt_kib",
                             "host_peak_hwm_kib", "guest_stats")
