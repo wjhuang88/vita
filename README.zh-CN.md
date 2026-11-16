@@ -101,22 +101,23 @@ bash scripts/ci/validate_i001_boot.sh
 > [!CAUTION]
 > 这段脚本会通过 `sudo` 安装开发依赖，使用 loop 设备和 Ventoy 安装器。但目标被限制为本次创建、经 backing-file 核验的临时 raw 镜像。**不要把脚本改成传入真实磁盘路径，也不要把它当作物理 U 盘写盘工具。**
 
-## 规划中的 U 盘目录
+## U 盘布局：系统镜像与用户镜像分离
+
+**2026-11-16 修订的产品约束：** Vita 自身的内核、启动文件、只读 rootfs 和版本回滚资产，**不能与用户导入的 ISO/IMG 镜像放在同一个镜像库或更新域**。旧的 `/iso/vita/vita-live.iso` 仅属于 I001 的历史启动探针，不再代表产品布局。
 
 ```text
-/iso/
-  vita/vita-live.iso       # Vita 默认系统，尚未发布
-  other-rescue.iso         # 用户自己的镜像
-/talos/
-  config/models.toml       # 模型/Provider 配置
-  config/agent.toml        # Agent 和权限配置
-  skills/
-  workspace/
-  logs/
-/ventoy/ventoy.json
+P1  Ventoy 用户数据区  /iso/        仅放用户自己的 ISO/IMG/WIM/VHD
+                      /talos/      用户配置、技能、工作区
+                      /ventoy/     Ventoy 必需的菜单配置
+P2  VTOYEFI            Ventoy 管理，不能挪作系统分区
+P3  Vita 系统区        /boot/       Vita 启动文件（规划）
+                      /versions/   只读、版本化系统镜像（规划）
+                      /recovery/   受控离线恢复文件（规划）
 ```
 
-这是 [Phase 1 布局契约](docs/reference/USB-LAYOUT.md)，并非已发布介质。
+P3 计划通过 Ventoy **初始安装时的预留空间**建立，而不是在现有用户 U 盘上静默重分区。Ventoy 能否在 BIOS 和 UEFI 中将 P3 的 Vita 系统设为默认入口，还必须单独验证，见 [Issue #27](https://github.com/wjhuang88/vita/issues/27)。目前**没有已验证的实体 USB 产品布局**，不得把现有 CI 探针改称安装器或贸然写入真实磁盘。
+
+系统升级只能操作已确认身份的 Vita 系统区，用户镜像的导入/删除只能操作用户镜像区；互不覆盖。详见 [ADR-0009](docs/decisions/ADR-0009-system-user-image-isolation.md) 和 [USB 布局契约](docs/reference/USB-LAYOUT.md)。
 
 ## 参与和开源许可
 
