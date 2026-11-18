@@ -167,3 +167,7 @@ Vita 的目标是**小而美、能力完整、Rust-first、智能体原生交互
 **I009b1 真正只读根文件系统的 VM 验证已完成（2026-11-14）：** [PR #19](https://github.com/wjhuang88/vita/pull/19) 经 **17/17 项精确提交 CI**及独立 Copilot 审查（无开放问题，仍需真人产品安全审核）后合并，提交 `96713752`。[BIOS/UEFI ISO 客体测试 43555621207](https://github.com/wjhuang88/vita/actions/runs/43555621207) 实证**独立、经 SHA 校验的只读 SquashFS 根目录 `/`**、root 与 UID1000 写入返回 `EROFS`、Rust stage1 切根到常驻 PID1、Talos 原生控制终端、篡改镜像拒绝启动与完整进程生命周期回归。镜像体积：根镜像 4.84 MiB、initramfs 5.18 MiB、ISO 29.55 MiB。**仍非生产级完整 Linux、可信固件启动、实体介质优化或最终 init 选型。**[验证记录](docs/iterations/I009b1-rootfs-stage1.md)。
 
 **I009b2a ISO 介质只读根系统 VM 工程验证完成（2026-11-14）：** [PR #22](https://github.com/wjhuang88/vita/pull/22) 已经 **19/19 项精确提交检查**与独立 Copilot 审查（无开放代码问题，产品级真人安全验收仍待完成）后合并，提交 `f0788fc`。[BIOS/UEFI QEMU 实测 43558241910](https://github.com/wjhuang88/vita/actions/runs/43558241910)证明只读 SquashFS 根镜像**直接位于 ISO9660 /dev/sr0**，不再复制到 stage1 initramfs；Talos 原生交互、PID1 故障回收和篡改镜像拒绝启动全部保留。初始 initramfs 从 **5.18 MiB 降至 0.48 MiB（缩小 90.77%）**；SquashFS 4.84 MiB，完整 ISO 29.69 MiB。**这仍只是 QEMU 工程证据**，内存/启动耗时比较、完整硬件服务、实体 U 盘、安全认证恢复以及最终 Rust/Dinit/Finit init 选型尚未完成。见 [I009b2 #21](https://github.com/wjhuang88/vita/issues/21) 与[详细证据](docs/iterations/I009b2a-media-rootfs.md)。
+
+## I010：真实模型虚拟机试用（开发中）
+
+可选 `model-test` 构建通过临时只读共享加载本地 Talos 的当前模型配置，虚拟机以 UID1000 调用真实模型，仅开放 `system_summary` 只读工具。密钥不进入 ISO，正常交互不保存聊天日志。见[本机试用说明](scripts/dev/README.md)。客户端重定向策略仍是未解决的安全门槛，仅限可信服务的非敏感工程试用，不是生产配置或发行验收。

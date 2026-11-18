@@ -175,11 +175,11 @@ impl ConsoleInput {
         }
     }
 
-    async fn turn(&mut self, runtime: &mut RuntimeHandle, out: &mut impl Write)
+    async fn turn(&mut self, runtime: &mut RuntimeHandle, out: &mut impl Write, limit: Duration)
         -> Result<(), Box<dyn Error>>
     {
         let mut renderer = Renderer::default();
-        let deadline = tokio::time::sleep(TURN_LIMIT);
+        let deadline = tokio::time::sleep(limit);
         tokio::pin!(deadline);
         let mut interrupted = false;
         loop {
@@ -223,7 +223,7 @@ impl ConsoleInput {
                 }
                 _ = &mut deadline => {
                     if !interrupted { runtime.interrupt().await?; }
-                    return Err("offline fixture turn timeout (30 s)".into());
+                    return Err("turn timeout".into());
                 }
             }
         }
@@ -236,10 +236,26 @@ pub async fn run() -> Result<(), Box<dyn Error>> {
     help(&mut out)?;
 
     let provider: Arc<dyn LanguageModel> = Arc::new(FixtureProvider);
+    run_provider(provider, TURN_LIMIT, &mut out).await
+}
+
+#[cfg(feature = "model-test")]
+pub async fn run_model() -> Result<(), Box<dyn Error>> {
+    let provider = crate::model::load_provider()?;
+    let mut out = io::stdout().lock();
+    writeln!(out, "Vita real model VM test — only read-only system_summary is available")?;
+    writeln!(out, "Commands: :help, :cancel, :quit; ask a question or request system inspection")?;
+    run_provider(provider, Duration::from_secs(180), &mut out).await
+}
+
+async fn run_provider(provider: Arc<dyn LanguageModel>, limit: Duration, mut out: &mut impl Write)
+    -> Result<(), Box<dyn Error>>
+{
+    let executed = Arc::new(AtomicBool::new(false));
     let mut runtime = RuntimeBuilder::new()
         .provider(provider)
         .workspace_root(".")
-        .tool(Arc::new(SystemSummary { executed: Arc::new(AtomicBool::new(false)) }))
+        .tool(Arc::new(SystemSummary { executed: executed.clone() }))
         .permission_rule(PermissionRule::new_nature(
             ToolNature::Read, None, None, PermissionDecision::Allow
         ))
@@ -256,9 +272,14 @@ pub async fn run() -> Result<(), Box<dyn Error>> {
             result = Err(err.into());
             break;
         }
-        if let Err(err) = input.turn(&mut runtime, &mut out).await {
+        if let Err(err) = input.turn(&mut runtime, &mut out, limit).await {
             result = Err(err);
             break;
+        }
+        #[cfg(feature = "model-test")]
+        if limit != TURN_LIMIT && executed.swap(false, std::sync::atomic::Ordering::SeqCst) {
+            writeln!(out, "VITA_I010_NATIVE_SYSTEM_SUMMARY_EXECUTED")?;
+            out.flush()?;
         }
     }
     if let Err(err) = runtime.shutdown().await {

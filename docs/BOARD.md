@@ -9,3 +9,5 @@
 | VITA-001-D | Now / Active | `backlog/active/VITA-001-D-talos-interaction-runtime.md` | I006 guest Talos console proven in QEMU; model/config, TTY and recovery open |
 | VITA-001-C | Now / Active | `backlog/active/VITA-001-C-live-os.md` | I008 through I009b2b VM slices merged (I009b2b 20/20 exact-head checks; 12 BIOS/UEFI boots; same-runner source benchmark recorded); Rust/Dinit/Finit selection (#25), post-prompt RAM, full Linux services and separate Vita-system P3 versus user ISO P1 boot/layout gate #27 OPEN; human hardware/security/release gates OPEN |
 | VITA-001-G | Later / Refinement | `backlog/active/VITA-001-G-recovery-shell.md` | I007 VM-only precursor verified; physical recovery/security approval not available |
+
+| VITA-001-E | Now / Active | `backlog/active/VITA-001-E-usb-config.md` | I010 BIOS real-model/tool trial passes; UEFI online error unresolved; transport policy security gate OPEN |

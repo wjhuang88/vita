@@ -1,4 +1,6 @@
 mod console;
+#[cfg(feature = "model-test")]
+mod model;
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -141,6 +143,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args == ["--console-fixture"] {
         return console::run().await;
+    }
+    #[cfg(feature = "model-test")]
+    if args == ["--console-model"] {
+        return console::run_model().await.map_err(|_| "model session failed (details suppressed)".into());
     }
     if !args.is_empty() {
         return Err("usage: vita-interaction-prototype [--console-fixture]".into());

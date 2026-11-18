@@ -5,6 +5,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WORK="$(mktemp -d /tmp/vita-i009b1.XXXXXX)"
 MEDIA_MODE="${VITA_I009B2_MEDIA_MODE:-0}"
+MODEL_TEST="${VITA_MODEL_TEST:-0}"
+[[ "$MODEL_TEST" == 0 || "$MODEL_TEST" == 1 ]] || { echo "Invalid model-test flag"; exit 1; }
+model_features=()
+if [[ "$MODEL_TEST" == 1 ]]; then model_features=(--features model-test); fi
 [[ "$MEDIA_MODE" == 0 || "$MEDIA_MODE" == 1 ]] || { echo "Invalid I009b2 mode" >&2; exit 1; }
 LOG="$ROOT/i009b1-rootfs-logs"
 if [[ "$MEDIA_MODE" == 1 ]]; then
@@ -73,6 +77,7 @@ if [[ "$MEDIA_MODE" == 1 ]]; then
   # is named 'isofs'. Require module identity, not filesystem type.
   drivers+=(isofs sr_mod ata_piix)
 fi
+if [[ "$MODEL_TEST" == 1 ]]; then drivers+=(virtio_net virtiofs); fi
 modprobe --all -d "$SRC" -S "$KVER" --show-depends "${drivers[@]}" \
   >"$LOG/modprobe-plan.txt" 2>"$LOG/modprobe-error.txt" ||
   fail "pinned module dependencies for squashfs/loop could not be resolved"
@@ -126,10 +131,10 @@ echo "[I009b1] Compile static Rust permanent init and native Talos"
 rustup toolchain install 1.99.0 --profile minimal
 rustup target add --toolchain 1.99.0 x86_64-unknown-linux-musl
 export CC_x86_64_unknown_linux_musl=musl-gcc
-cargo +1.99.0 build --manifest-path "$ROOT/prototypes/vita-init/Cargo.toml" \
+cargo +1.99.0 build --manifest-path "$ROOT/prototypes/vita-init/Cargo.toml" "${model_features[@]}" \
   --release --target x86_64-unknown-linux-musl
-cargo +1.99.0 test --manifest-path "$ROOT/prototypes/vita-init/Cargo.toml"
-cargo +1.99.0 build --manifest-path "$ROOT/prototypes/interaction-runtime/Cargo.toml" \
+cargo +1.99.0 test --manifest-path "$ROOT/prototypes/vita-init/Cargo.toml" "${model_features[@]}"
+cargo +1.99.0 build --manifest-path "$ROOT/prototypes/interaction-runtime/Cargo.toml" "${model_features[@]}" \
   --release --target x86_64-unknown-linux-musl
 INIT="$ROOT/prototypes/vita-init/target/x86_64-unknown-linux-musl/release/vita-init"
 TALOS="$ROOT/prototypes/interaction-runtime/target/x86_64-unknown-linux-musl/release/vita-interaction-prototype"
@@ -154,6 +159,12 @@ chmod 0777 "$TREE/.vita-i009b1-write-fixture"
 printf 'root:x:0:0:root:/root:/bin/false\nvita:x:1000:1000:Vita Agent:/run/vita:/bin/false\n' >"$TREE/etc/passwd"
 printf 'root:x:0:\nvita:x:1000:\n' >"$TREE/etc/group"
 chmod 0644 "$TREE/etc/passwd" "$TREE/etc/group"
+if [[ "$MODEL_TEST" == 1 ]]; then
+  # Public CA roots only; operator model credentials never enter the image.
+  mkdir -p "$TREE/etc/ssl/certs"
+  cp /etc/ssl/certs/ca-certificates.crt "$TREE/etc/ssl/certs/ca-certificates.crt"
+  ln -s /run/vita-resolv.conf "$TREE/etc/resolv.conf"
+fi
 IMAGE="$WORK/vita-system.squashfs"
 mksquashfs "$TREE" "$IMAGE" -noappend -no-progress -no-xattrs \
   -all-root -all-time 0 -mkfs-time 0 -processors 1 -comp gzip \
@@ -233,6 +244,10 @@ menuentry "Vita experimental SquashFS root" {
     initrd /boot/stage1.cpio.gz
 }
 GRUB
+if [[ "$MODEL_TEST" == 1 ]]; then
+  sed -i 's/vita.i009.test_orphan=1/vita.i009.test_orphan=1 vita.model-test=1/' \
+    "$ISO_TREE/boot/grub/grub.cfg"
+fi
 # Benchmark kernel marker has no effect in standard ISO tests.
 if [[ "${VITA_I009_BENCH_BUILD_ONLY:-0}" == 1 ]]; then
   sed -i 's/vita.i009.test_orphan=1/vita.i009.test_orphan=1 vita.i009.benchmark=1/' \

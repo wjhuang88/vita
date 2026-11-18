@@ -43,3 +43,7 @@ cargo +1.99.0 run --manifest-path prototypes/interaction-runtime/Cargo.toml -- -
 Enter `inspect` to exercise the registered read-only `system_summary` Tool through Talos, stream its response, and continue to another prompt. `:help`, `:cancel`, `:quit` and Ctrl+C are available. `demo:error` deliberately fails one fixture turn to test recovery; `demo:slow` lets a human test interrupting an active turn. Input typed during a turn is queued; `:quit` drains previously queued turns before exit, while `:cancel` interrupts the current turn. EOF finishes the active turn first.
 
 The session does not connect to an LLM, write disks, expose a root shell, boot a Vita ISO or provide durable recovery. The [manual acceptance checklist](../../docs/validation/I004-HUMAN-ACCEPTANCE.md) records items requiring a real TTY/PTY or human review.
+
+## I010 opt-in real-model VM trial
+
+The `model-test` feature adds `--console-model`, reading only the private runtime projection at `/run/vita-model/config.json`. See [trial instructions](../../scripts/dev/README.md). Default `--console-fixture` remains offline. This is not production credential/config support.

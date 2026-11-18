@@ -8,3 +8,19 @@ publish = false
 [dependencies]
 nix = { version = "0.30.1", default-features = false, features = ["fs", "mount", "process", "signal", "user"] }
 signal-hook = "0.3.18"
+
+[features]
+model-test = ["dep:rtnetlink", "dep:tokio", "dep:futures-util"]
+
+[dependencies.rtnetlink]
+version = "0.18"
+optional = true
+
+[dependencies.tokio]
+version = "1"
+features = ["rt", "net", "time"]
+optional = true
+
+[dependencies.futures-util]
+version = "0.3"
+optional = true

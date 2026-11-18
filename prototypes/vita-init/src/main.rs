@@ -2,6 +2,9 @@
 //! non-root session. Not a complete service manager, released rootfs or OS.
 #![forbid(unsafe_code)]
 
+#[cfg(feature = "model-test")]
+mod model_test;
+
 use nix::errno::Errno;
 use nix::mount::{MsFlags, mount};
 use nix::sys::signal::{Signal, kill};
@@ -324,7 +327,7 @@ fn session_child(crash: bool) -> io::Result<()> {
     let (_sid, tty_nr, _tpgid) = controlling_tty_info(&stat, std::process::id() as i32)?;
     serial(&format!("VITA_I009_CONTROLLING_TTY_OK sid={sid} tty_nr={tty_nr} uid={VITA_UID}"));
     let status = Command::new(SESSION_BINARY)
-        .arg("--console-fixture")
+        .arg(if model_test_requested()? { "--console-model" } else { "--console-fixture" })
         .current_dir("/")
         .env_clear()
         .env("HOME", "/")
@@ -539,6 +542,10 @@ fn boot_pid1(stage2: bool) -> io::Result<()> {
     let flags = parse_boot_options(&fs::read_to_string("/proc/cmdline")?)?;
     verify_rootfs_ownership()?;
     mount_immutable_vita()?;
+    if model_test_requested()? {
+        #[cfg(feature = "model-test")]
+        model_test::prepare()?;
+    }
     configure_fixture_tty()?;
     serial("VITA_I009_PID1_MINIMAL_INIT_READY");
     // Only the disposable benchmark ISO adds this exact kernel parameter.
@@ -807,5 +814,36 @@ mod tests {
         assert!(controlling_tty_info("25 (vita) S 1 25 25 0 25", 25).is_err());
         assert!(controlling_tty_info("25 (vita) S 1 7 25 1088 7", 25).is_err());
         assert!(controlling_tty_info("25 (vita) S 1 25 25 1088 5", 25).is_err());
+    }
+}
+
+// Both a compile-time feature and the exact boot token are required.
+fn model_test_requested() -> io::Result<bool> {
+    let cmdline = fs::read_to_string("/proc/cmdline")?;
+    parse_model_test_option(&cmdline, cfg!(feature = "model-test"))
+}
+
+fn parse_model_test_option(cmdline: &str, enabled: bool) -> io::Result<bool> {
+    let tokens: Vec<_> = cmdline.split_ascii_whitespace()
+        .filter(|v| v.starts_with("vita.model-test=")).collect();
+    if tokens.is_empty() { return Ok(false); }
+    if tokens != ["vita.model-test=1"] || !enabled {
+        return Err(io::Error::other("model-test boot option unavailable or invalid"));
+    }
+    Ok(true)
+}
+
+#[cfg(test)]
+mod model_option_tests {
+    use super::parse_model_test_option;
+    #[test]
+    fn explicit_feature_and_unambiguous_token_required() {
+        assert!(!parse_model_test_option("quiet", false).unwrap());
+        assert!(!parse_model_test_option("quiet", true).unwrap());
+        assert!(parse_model_test_option("vita.model-test=1", false).is_err());
+        assert!(parse_model_test_option("vita.model-test=1", true).unwrap());
+        for line in ["vita.model-test=0", "vita.model-test=1 vita.model-test=1", "vita.model-test=01"] {
+            assert!(parse_model_test_option(line, true).is_err());
+        }
     }
 }
