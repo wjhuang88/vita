@@ -11,3 +11,7 @@
 | VITA-001-G | Later / Refinement | `backlog/active/VITA-001-G-recovery-shell.md` | I007 VM-only precursor verified; physical recovery/security approval not available |
 
 | VITA-001-E | Now / Active | `backlog/active/VITA-001-E-usb-config.md` | I010 BIOS real-model/tool trial passes; UEFI online error unresolved; transport policy security gate OPEN |
+
+| VITA-001-D1 | Complete (research) | `backlog/active/VITA-001-D1-os-interface-research.md` | Research handed to VITA-002 child development records |
+
+| [VITA-002 #29](https://github.com/wjhuang88/vita/issues/29) | Next / Refinement | `backlog/active/VITA-002-os-interaction-settings.md` | A/C/F Ready; B/D/E/G/H/I/J depend on earlier validation; no iteration started |

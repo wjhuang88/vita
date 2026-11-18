@@ -19,6 +19,12 @@
 | VITA-001-G | P1 | Story | Provide explicit compatibility/recovery shell | I007 QEMU offline root recovery proven; firmware/TTY/security/product recovery open | ADR-0007 + I007 | Refinement |
 | VITA-001-H | P0 | Technical Story | Produce reproducible USB image and boot validation matrix | A proven; release artifact still depends on C | Boot validation SOP + ADR-0004 | Refinement |
 
+## Research / Refinement
+
+| ID | Priority | Type | Outcome | Owner | State |
+| --- | --- | --- | --- | --- | --- |
+| VITA-001-D1 | P0 candidate | Spike | OS primary TUI plus offline model/system settings | [research owner](active/VITA-001-D1-os-interface-research.md) | Complete (research); implementation transferred to VITA-002 |
+
 ## Completed / Archived
 | ID | Type | Result | Archive |
 | --- | --- | --- | --- |
@@ -37,3 +43,9 @@ Completed or superseded item detail lives in `archive/`; this file remains the p
 **I009b1 VM engineering checkpoint (2026-11-14):** [PR #19](https://github.com/wjhuang88/vita/pull/19) merged, 17/17 final-head checks; actual readonly SquashFS `/` and stage1/PID1 handoff proven in QEMU. VITA-001-C remains Active for media mapping, services/drivers, final init comparison and human release gates.
 
 **I009b2a VM media-source checkpoint (2026-11-14):** [PR #22](https://github.com/wjhuang88/vita/pull/22) merged after 19/19 exact-head checks and independent AI technical review; [BIOS/UEFI evidence](https://github.com/wjhuang88/vita/actions/runs/43558241910) proves readonly ISO9660 source for the complete readonly SquashFS `/`, no root image in initramfs, negative media-image tamper rejection and PID1/Talos fault lifecycle. [I009b2 #21](https://github.com/wjhuang88/vita/issues/21) stays open for boot/RAM benchmark and init comparison. No physical/release approvals.
+
+## OS interaction/settings development
+
+| ID | Priority | Type | Outcome | Required Reads | State |
+| --- | --- | --- | --- | --- | --- |
+| [VITA-002 / #29](https://github.com/wjhuang88/vita/issues/29) | P0 | Epic | Native Agent TUI and offline model/OS settings | [Epic and child index](active/VITA-002-os-interaction-settings.md); each child names mandatory contracts/ADRs | Refinement; A/C/F Ready, other children await dependencies |
