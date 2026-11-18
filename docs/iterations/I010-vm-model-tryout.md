@@ -55,3 +55,9 @@ Status: **Partial engineering slice; usable BIOS real-model trial delivered.** U
 Remaining: UEFI online error diagnosis; provider no-redirect/HTTPS-only public transport API; complete fault/negative matrix and exact-head independent review/CI before merge. Product USB configuration, hardware and release gates remain open.
 
 Final offline checks: BIOS and UEFI **PASS** on same model-capable payload with opt-in boot token removed, two turns plus expected error recovery. Default-feature tests: console 2/2, init 9/9. Governance validator and `git diff --check`: PASS. Interactive BIOS model VM launched with GTK and no QEMU startup errors; conversation logging disabled.
+
+## Maintainer-authorized experimental merge exception (2026-11-18)
+
+The maintainer explicitly authorized merging the current experimental code and planning documents into main while retaining unresolved items: “允许实验代码例外归并，保留未解决项”. This is a bounded exception to the pre-merge independent exact-head review/CI gate for the existing I010 experiment, not evidence that those checks passed.
+
+The provider redirect/HTTPS confinement finding, UEFI online failure, incomplete fault matrix and final-head independent review/CI remain open. I010 remains Partial; the model trial remains opt-in. No production security, physical-media or release acceptance is granted. The blocked historical I002 PR #4 is outside this exception and remains unmerged.
