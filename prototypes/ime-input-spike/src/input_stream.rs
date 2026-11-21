@@ -25,6 +25,7 @@ pub enum Decoded {
 pub struct Decoder {
     escape: Vec<u8>,
     esc_since: Option<Instant>,
+    discard_csi_since: Option<Instant>,
     in_paste: bool,
     paste_since: Option<Instant>,
     paste_tail: Vec<u8>,
@@ -57,6 +58,12 @@ impl Decoder {
         {
             self.reset_escape();
             out.push(Decoded::Editor(Input::Escape));
+        }
+        if self
+            .discard_csi_since
+            .is_some_and(|start| start.elapsed() >= ESC_TIMEOUT)
+        {
+            self.discard_csi_since = None;
         }
         if self
             .paste_since
@@ -99,6 +106,15 @@ impl Decoder {
                 }
             }
 
+            // Reject the complete unknown CSI sequence (including all
+            // parameters), not just its prefix. Never turn its trailing
+            // digits into IME text or an accidental submission.
+            if self.discard_csi_since.is_some() {
+                if (0x40..=0x7e).contains(&byte) {
+                    self.discard_csi_since = None;
+                }
+                continue;
+            }
             if !self.escape.is_empty() {
                 self.escape.push(byte);
                 self.parse_escape(&mut result);
@@ -161,6 +177,17 @@ impl Decoder {
                 .iter()
                 .any(|(sequence, _)| sequence.starts_with(&self.escape))
         {
+            // The remainder of an unsupported CSI must be dropped
+            // through its final byte; otherwise e.g. ESC[199...~
+            // becomes printable digits in the user editor.
+            let csi = self.escape.starts_with(b"\x1b[");
+            let final_seen = self
+                .escape
+                .last()
+                .is_some_and(|byte| (0x40..=0x7e).contains(byte));
+            if csi && !final_seen {
+                self.discard_csi_since = Some(Instant::now());
+            }
             self.reset_escape();
         }
     }
@@ -248,6 +275,19 @@ mod tests {
         );
         assert!(parser.feed(b"\x1b[1999999999999999~").is_empty());
         assert!(parser.escape.is_empty());
+        assert!(parser.discard_csi_since.is_none());
+        assert_eq!(parser.feed(b"x"), vec![Decoded::Editor(Input::Char('x'))]);
+    }
+
+    #[test]
+    fn split_unknown_csi_does_not_inject_ascii_or_ctrl_d() {
+        let mut parser = Decoder::new();
+        assert!(parser.feed(b"\x1b[199").is_empty());
+        // Even Ctrl+D occurring as a literal in a malformed unfinished CSI
+        // is consumed without ever returning an accidental submit.
+        assert!(parser.feed(b"01234").is_empty());
+        assert!(parser.feed(b"~").is_empty());
+        assert_eq!(parser.feed(b"x"), vec![Decoded::Editor(Input::Char('x'))]);
     }
 
     #[test]
