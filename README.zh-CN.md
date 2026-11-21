@@ -119,6 +119,10 @@ P3 计划通过 Ventoy **初始安装时的预留空间**建立，而不是在�
 
 系统升级只能操作已确认身份的 Vita 系统区，用户镜像的导入/删除只能操作用户镜像区；互不覆盖。详见 [ADR-0009](docs/decisions/ADR-0009-system-user-image-isolation.md) 和 [USB 布局契约](docs/reference/USB-LAYOUT.md)。
 
+## 纯 TUI 中文输入实验（I011，未进入 Vita 系统镜像）
+
+已在独立分支推进 [VITA-002-K #40](https://github.com/wjhuang88/vita/issues/40)：使用 Rust `inputx-pinyin` 与独立 Ratatui 原型验证拼音预编辑、候选词、Unicode 编辑和 PTY 交互。开发者可使用 `cargo +1.99.0 run --manifest-path prototypes/ime-input-spike/Cargo.toml` 在支持 UTF-8 的宿主终端运行实验。**它不是当前 Vita 系统的默认中文输入法**，尚未验证 BIOS/UEFI Kmscon/DRM、实体键盘和 CJK 字体、许可证或中文输入发布验收，也不包含模型、秘密或特权动作。详见 [I011 迭代](docs/iterations/I011-chinese-ime-tui-spike.md)与[原型说明](prototypes/ime-input-spike/README.md)。
+
 ## 参与和开源许可
 
 欢迎贡献 Rust 原生 Linux 系统 API、极简 Live OS、ISO/固件兼容性、权限安全审查以及自动化测试。请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [AGENTS.md](AGENTS.md)。涉及写盘、引导和权限的变更必须遵循 [高风险审查流程](docs/sop/PAIRING-WORKFLOW.md)。
