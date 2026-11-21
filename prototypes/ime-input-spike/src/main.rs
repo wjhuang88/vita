@@ -2,16 +2,19 @@
 use std::{io, time::Duration};
 
 use crossterm::{
-    event::{self, DisableBracketedPaste, EnableBracketedPaste, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
+    event::{
+        self, DisableBracketedPaste, EnableBracketedPaste, Event, KeyCode, KeyEvent, KeyEventKind,
+        KeyModifiers,
+    },
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use inputx_pinyin::PinyinEngine;
 use ratatui::{
+    Frame, Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Layout},
     widgets::{Block, Borders, Paragraph, Wrap},
-    Frame, Terminal,
 };
 use unicode_width::UnicodeWidthStr;
 use vita_ime_input_spike::{Editor, Input, Mode, Outcome, View};
@@ -37,7 +40,10 @@ impl Drop for TerminalGuard {
 }
 
 fn key_to_input(key: KeyEvent) -> Option<Input> {
-    if key.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER) {
+    if key
+        .modifiers
+        .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER)
+    {
         // Ctrl+Space may arrive as Char(' '), depending on the PTY/terminal.
         if key.modifiers.contains(KeyModifiers::CONTROL)
             && matches!(key.code, KeyCode::Char(' ') | KeyCode::Null)
@@ -68,40 +74,77 @@ fn draw(frame: &mut Frame<'_>, view: &View, submitted: &[String]) {
         Constraint::Length(4),
         Constraint::Length(4),
         Constraint::Min(3),
-    ]).split(frame.area());
+    ])
+    .split(frame.area());
 
     let mode = match view.mode {
         Mode::Chinese => "中 / Pinyin",
         Mode::English => "EN / plain Unicode",
     };
     frame.render_widget(
-        Paragraph::new(format!("Vita IME PTY spike · {mode} · F2/Ctrl+Space switch · Ctrl+C exit"))
-            .block(Block::default().borders(Borders::ALL).title("Offline input only")),
+        Paragraph::new(format!(
+            "Vita IME PTY spike · {mode} · F2/Ctrl+Space switch · Ctrl+C exit"
+        ))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Offline input only"),
+        ),
         sections[0],
     );
 
     frame.render_widget(
         Paragraph::new(format!("文本: {}\n拼音: {}", view.text, view.composing))
-            .block(Block::default().borders(Borders::ALL).title("Editor / preedit"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Editor / preedit"),
+            )
             .wrap(Wrap { trim: false }),
         sections[1],
     );
 
-    let candidates = view.candidates.iter().map(|(i, text)| format!("{i}.{text}"))
-        .collect::<Vec<_>>().join("  ");
-    let page = if view.pages == 0 { "no candidates".into() }
-        else { format!("page {}/{}", view.page + 1, view.pages) };
+    let candidates = view
+        .candidates
+        .iter()
+        .map(|(i, text)| format!("{i}.{text}"))
+        .collect::<Vec<_>>()
+        .join("  ");
+    let page = if view.pages == 0 {
+        "no candidates".into()
+    } else {
+        format!("page {}/{}", view.page + 1, view.pages)
+    };
     frame.render_widget(
-        Paragraph::new(format!("{page}: {candidates}\n1-5 select · Space/Enter commit · Tab page · Esc cancel"))
-            .block(Block::default().borders(Borders::ALL).title("IME candidates"))
-            .wrap(Wrap { trim: false }),
+        Paragraph::new(format!(
+            "{page}: {candidates}\n1-5 select · Space/Enter commit · Tab page · Esc cancel"
+        ))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("IME candidates"),
+        )
+        .wrap(Wrap { trim: false }),
         sections[2],
     );
 
     frame.render_widget(
-        Paragraph::new(submitted.iter().rev().take(8).rev().cloned().collect::<Vec<_>>().join("\n"))
-            .block(Block::default().borders(Borders::ALL).title("Submitted lines (no model/tool calls)"))
-            .wrap(Wrap { trim: false }),
+        Paragraph::new(
+            submitted
+                .iter()
+                .rev()
+                .take(8)
+                .rev()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Submitted lines (no model/tool calls)"),
+        )
+        .wrap(Wrap { trim: false }),
         sections[3],
     );
 
