@@ -329,6 +329,6 @@ mod tests {
             assert!(visible.width() <= columns);
             assert!(columns == 0 || x < columns);
         }
-        assert_eq!(tail_in_cells("拼音zhongguo", 5), "gguo");
+        assert_eq!(tail_in_cells("拼音zhongguo", 5), "ngguo");
     }
 }
