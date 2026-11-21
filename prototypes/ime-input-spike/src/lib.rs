@@ -82,13 +82,16 @@ impl<'e> Editor<'e> {
     }
 
     pub fn view(&mut self) -> View {
+        // Capture fields before borrowing the mutable candidate cache.
+        let cursor_prefix = self.text[..self.byte_at_cursor()].to_owned();
+        let composing = self.session.input().to_owned();
         let candidates = self.session.candidates();
         let pages = candidates.len().div_ceil(PAGE_SIZE);
         let start = self.page.saturating_mul(PAGE_SIZE);
         View {
             text: self.text.clone(),
-            cursor_prefix: self.text[..self.byte_at_cursor()].to_owned(),
-            composing: self.session.input().to_owned(),
+            cursor_prefix,
+            composing,
             mode: self.mode,
             candidates: candidates.iter().skip(start).take(PAGE_SIZE)
                 .enumerate().map(|(i, s)| (i + 1, s.clone())).collect(),
