@@ -98,7 +98,9 @@ class TerminalScreen:
                     if self.x < self.width:
                         self.cells[self.y][self.x] = ch
                         if cell_width == 2 and self.x + 1 < self.width:
-                            self.cells[self.y][self.x + 1] = " "
+                            # Continuation occupies a terminal cell, not a
+                            # literal visible space between Chinese glyphs.
+                            self.cells[self.y][self.x + 1] = ""
                     self.x += cell_width
             elif self.state == "escape":
                 if ch == "[":
