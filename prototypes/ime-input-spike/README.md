@@ -30,16 +30,20 @@ cannot reliably distinguish a second key press from Enter auto-repeat.
 **Esc** cancels preedit, **Backspace** deletes preedit or a whole Unicode
 grapheme, and **Ctrl+C** exits and restores terminal state.
 
-Host-IME committed Unicode characters are handled as direct text input,
-**not re-interpreted as pinyin**. **Bracketed paste is intentionally
-DISABLED in this PTY prototype:** crossterm's upstream Event::Paste parser
-can buffer arbitrarily large/incomplete payloads before an application
-callback. Do not claim large-paste acceptance; a bounded streaming decoder
-is a follow-up product requirement. The library's explicit `Input::Paste`
-method is separately unit-tested for control/bidi filtering, newline
-normalization, and a 4,096-character event cap, but is not wired to the
-PTY parser. The editor is bounded to 32 ASCII pinyin letters per
-composition, five candidates/page and 8 KiB committed text.
+Host-IME committed Unicode characters are treated as direct text,
+**not re-interpreted as pinyin**. This standalone TUI **does not call
+Crossterm's input event parser at all**: even without requesting bracketed
+paste, an unsolicited `ESC[200~` can trigger its default-enabled unbounded
+paste parser and swallow Ctrl+C. Instead, a fixed 512-byte raw-input
+reader and a bounded, backpressured 16-slot channel feed a small
+stream decoder with capped UTF-8/escape state. Complete or incomplete
+bracketed-paste sequences are **discarded without committing text**;
+Ctrl+C is always recognized. This is deliberately NOT support for arbitrary
+bracketed-paste text. The library's bounded `Input::Paste` method remains
+test-only and is not wired into the PTY path. Full safe streaming paste
+is a future product requirement. The editor remains bounded to
+32 ASCII pinyin letters per composition, five candidates/page
+and 8 KiB committed text.
 
 **Security:** no network/model, shell calls, file writes, credential
 inputs, logs, or persistent learning. The engine's in-memory L0 ranking
@@ -55,9 +59,10 @@ python3 scripts/ci/test_i011_ime_pty.py \
 ```
 
 The CI uses real PTY key input with staged Enter-confirm and Ctrl+D-submit,
-a bounded resize, Ctrl+C and a distinct SIGTERM process shutdown;
-it checks changed submitted state, UTF-8 glyph output and termios
-restoration, then compiles a Rust
+a bounded resize, Ctrl+C, a distinct SIGTERM process shutdown,
+and an unsolicited unfinished bracketed-paste stream plus Ctrl+C.
+It checks reconstructed terminal states, Unicode glyphs, terminal
+restoration and paste discard, then compiles a Rust
 `x86_64-unknown-linux-musl` binary. A passing host PTY check **does not**
 prove a Linux kernel VT or Kmscon physical console.
 
