@@ -21,19 +21,25 @@ cargo +1.99.0 run --manifest-path prototypes/ime-input-spike/Cargo.toml -- --sel
 ```
 
 The session starts in Chinese mode. Enter `zhongguo` to see candidates;
-choose using **1–5**, **Space** or **Enter**, and press **Enter again**
-to submit the committed text to the *local* demonstration panel.
+choose using **1–5**, **Space** or **Enter**. **Enter never submits**;
+press **Ctrl+D** or **F4** to submit committed text to the *local*
+demonstration panel. This distinct gesture is intentional: legacy PTYs
+cannot reliably distinguish a second key press from Enter auto-repeat.
 **F2** or **Ctrl+Space** (when the terminal sends it) toggles English mode;
 **Tab/PageDown** and **Shift+Tab/PageUp** navigate candidate pages,
 **Esc** cancels preedit, **Backspace** deletes preedit or a whole Unicode
 grapheme, and **Ctrl+C** exits and restores terminal state.
 
-Paste is recognized through bracketed-paste events and treated as
-**already-committed Unicode**, not re-interpreted as pinyin. Embedded
-control/escape bytes and bidi overrides are removed from pasted editor
-text; newlines/tabs become spaces. The editor is intentionally bounded:
-32 ASCII pinyin letters in preedit, five candidates per page,
-4,096 pasted characters per event and 8 KiB editor content.
+Host-IME committed Unicode characters are handled as direct text input,
+**not re-interpreted as pinyin**. **Bracketed paste is intentionally
+DISABLED in this PTY prototype:** crossterm's upstream Event::Paste parser
+can buffer arbitrarily large/incomplete payloads before an application
+callback. Do not claim large-paste acceptance; a bounded streaming decoder
+is a follow-up product requirement. The library's explicit `Input::Paste`
+method is separately unit-tested for control/bidi filtering, newline
+normalization, and a 4,096-character event cap, but is not wired to the
+PTY parser. The editor is bounded to 32 ASCII pinyin letters per
+composition, five candidates/page and 8 KiB committed text.
 
 **Security:** no network/model, shell calls, file writes, credential
 inputs, logs, or persistent learning. The engine's in-memory L0 ranking
@@ -48,8 +54,10 @@ python3 scripts/ci/test_i011_ime_pty.py \
   prototypes/ime-input-spike/target/debug/vita-ime-input-spike
 ```
 
-The CI uses real PTY key input, a bounded resize and Ctrl+C, checks UTF-8
-candidate bytes and termios restoration, then compiles a Rust
+The CI uses real PTY key input with staged Enter-confirm and Ctrl+D-submit,
+a bounded resize, Ctrl+C and a distinct SIGTERM process shutdown;
+it checks changed submitted state, UTF-8 glyph output and termios
+restoration, then compiles a Rust
 `x86_64-unknown-linux-musl` binary. A passing host PTY check **does not**
 prove a Linux kernel VT or Kmscon physical console.
 
