@@ -51,13 +51,17 @@ def run(exe: str) -> None:
                 if not chunk:
                     break
                 observed.extend(chunk)
-            if not sent and b"Vita IME PTY spike" in observed:
+            # Terminal painters may interleave cursor/style sequences
+            # with title bytes; readiness is *raw input + first draw*,
+            # not a fragile substring in an ANSI screen stream.
+            raw_ready = not (termios.tcgetattr(slave)[3] & termios.ICANON)
+            if not sent and observed and raw_ready:
                 # Discrete keypresses: first Enter confirms Pinyin;
                 # the second submits a line, and must not call any Agent.
                 os.write(master, b"zhongguo")
-                time.sleep(0.1)
+                time.sleep(0.15)
                 os.write(master, b"\r")
-                time.sleep(0.1)
+                time.sleep(0.15)
                 os.write(master, b"\r")
                 sent = True
             if sent and not resized and "中国".encode() in observed:
@@ -78,6 +82,8 @@ def run(exe: str) -> None:
             raise AssertionError(
                 f"PTY UI did not exit after Ctrl+C; sent={sent}, "
                 f"resized={resized}, stopped={stopped}, "
+                f"raw_ready={not (termios.tcgetattr(slave)[3] & termios.ICANON)}, "
+                f"transcript_head={bytes(observed[:400]).decode('utf-8', errors='replace')!r}, "
                 f"transcript_tail={debug!r}"
             )
         output = bytes(observed).decode("utf-8", errors="replace")
