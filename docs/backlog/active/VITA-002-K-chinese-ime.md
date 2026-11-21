@@ -22,9 +22,12 @@ never launch Talos CLI inside bash as the primary product.
 
 1. **Stage 1, executable PTY proof (in progress).** Small independent
    Rust inputx-pinyin 1.4.0/rust 1.99 implementation; mode/preedit/
-   candidates/selection/paging/backspace, external UTF-8 paste not
-   double-converted, bounded buffers, trustworthy text submit only on
-   *separate* Enter, no persistence or model/privileged actions. Actual
+   candidates/selection/paging/backspace, direct host-IME Unicode not
+   double-converted, bounded buffers, **Ctrl+D/F4 submit only** (Enter
+   cannot submit, even on auto-repeat), and no model/privileged actions.
+   Live bracketed-paste decoding deliberately disabled due upstream
+   unbounded allocation; bounded streaming paste remains a product gap.
+   Actual
    host PTY runtime, resize and terminal recovery must be checked in CI.
    This stage does not close #30; it supplies IME-specific evidence.
 2. **Stage 2, Linux native console proof (not started).** Disposable
