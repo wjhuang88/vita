@@ -15,5 +15,4 @@
 | VITA-001-D1 | Complete (research) | `backlog/active/VITA-001-D1-os-interface-research.md` | Research handed to VITA-002 child development records |
 
 | [VITA-002 #29](https://github.com/wjhuang88/vita/issues/29) | Next / Refinement | `backlog/active/VITA-002-os-interaction-settings.md` | A/C/F Ready; B/D/E/G/H/I/J depend on earlier validation; no iteration started |
-
 | [VITA-002-K #40](https://github.com/wjhuang88/vita/issues/40) | Now / Active Stage 1 | `backlog/active/VITA-002-K-chinese-ime.md` | I011: isolated Rust Pinyin + host PTY prototype in review/CI; Kmscon local CJK BIOS/UEFI proof, production integration and human release approval OPEN |
