@@ -56,7 +56,10 @@ impl Drop for TerminalGuard {
 fn key_to_input(key: KeyEvent) -> Option<Input> {
     // Explicit submission gesture cannot be confused with repeating Enter
     // on traditional PTYs that do not report key release events.
-    if key.modifiers.contains(KeyModifiers::CONTROL) && matches!(key.code, KeyCode::Char('d')) {
+    if (key.modifiers.contains(KeyModifiers::CONTROL)
+        && matches!(key.code, KeyCode::Char('d')))
+        || matches!(key.code, KeyCode::Char('\u{4}'))
+    {
         return Some(Input::Submit);
     }
     if key
@@ -147,8 +150,9 @@ fn draw(frame: &mut Frame<'_>, view: &View, submitted: &[String]) {
     };
     frame.render_widget(
         Paragraph::new(format!(
-            "S={} · Vita IME PTY spike · {mode} · F2 switch · Ctrl+D/F4 submit · Ctrl+C exit",
-            submitted.len()
+            "S={} E={} · Vita IME PTY spike · {mode} · F2 switch · Ctrl+D/F4 submit · Ctrl+C exit",
+            submitted.len(),
+            view.text.graphemes(true).count()
         ))
         .block(
             Block::default()
