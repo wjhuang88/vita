@@ -56,8 +56,7 @@ impl Drop for TerminalGuard {
 fn key_to_input(key: KeyEvent) -> Option<Input> {
     // Explicit submission gesture cannot be confused with repeating Enter
     // on traditional PTYs that do not report key release events.
-    if (key.modifiers.contains(KeyModifiers::CONTROL)
-        && matches!(key.code, KeyCode::Char('d')))
+    if (key.modifiers.contains(KeyModifiers::CONTROL) && matches!(key.code, KeyCode::Char('d')))
         || matches!(key.code, KeyCode::Char('\u{4}'))
     {
         return Some(Input::Submit);
