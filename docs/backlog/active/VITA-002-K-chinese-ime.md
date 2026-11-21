@@ -25,10 +25,14 @@ never launch Talos CLI inside bash as the primary product.
    candidates/selection/paging/backspace, direct host-IME Unicode not
    double-converted, bounded buffers, **Ctrl+D/F4 submit only** (Enter
    cannot submit, even on auto-repeat), and no model/privileged actions.
-   Live bracketed-paste decoding deliberately disabled due upstream
-   unbounded allocation; bounded streaming paste remains a product gap.
-   Actual
-   host PTY runtime, resize and terminal recovery must be checked in CI.
+   **Crossterm's default event parser is bypassed completely** because
+   unsolicited paste can enter its unbounded buffer even when the UI
+   never requests paste mode. A bounded raw PTY stream decoder discards
+   all bracketed-paste contents, preserves Ctrl+C, caps the channel and
+   escape state, and rejects unknown CSI suffixes. Normal committed
+   Unicode key input remains supported; arbitrary pasted text remains
+   a product feature gap. Real PTY unsolicited incomplete paste/abort,
+   resize and terminal restoration require exact-head CI proof.
    This stage does not close #30; it supplies IME-specific evidence.
 2. **Stage 2, Linux native console proof (not started).** Disposable
    QEMU BIOS + OVMF UEFI run actual DRM/KMS Kmscon+fonts+the same TUI
