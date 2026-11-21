@@ -217,7 +217,7 @@ impl Decoder {
             b'\r' | b'\n' => Some(Input::Enter),
             b'\t' => Some(Input::NextPage),
             b' ' => Some(Input::Space),
-            0x20..=0x7e => Some(Input::Char(char::from(byte))),
+            0x21..=0x7e => Some(Input::Char(char::from(byte))),
             _ => None,
         };
         if let Some(input) = input {
