@@ -176,13 +176,13 @@ fn run_tui() -> io::Result<()> {
                 {
                     break;
                 }
-                if let Some(input) = key_to_input(key) {
-                    if let Outcome::Submitted(line) = editor.handle(input) {
-                        // Demo only: no agent operation is ever triggered by an IME commit.
-                        submitted.push(line);
-                        if submitted.len() > 8 {
-                            submitted.remove(0);
-                        }
+                if let Some(input) = key_to_input(key)
+                    && let Outcome::Submitted(line) = editor.handle(input)
+                {
+                    // Demo only: no agent operation is ever triggered by an IME commit.
+                    submitted.push(line);
+                    if submitted.len() > 8 {
+                        submitted.remove(0);
                     }
                 }
             }
