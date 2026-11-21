@@ -240,6 +240,37 @@ def keyboard_run(exe):
         close_session(master, slave, proc)
 
 
+def unsolicited_paste_run(exe):
+    # Even without requesting bracketed paste, a remote/unsolicited
+    # terminal may send ESC[200~ and omit its closing ESC[201~.
+    # The stream parser must never buffer the whole payload or swallow ^C.
+    master, slave, original, proc = open_session(exe)
+    output = bytearray()
+    screen = TerminalScreen()
+    try:
+        until(master, output, screen,
+              lambda: tty_raw(slave) and "S=0 E=0" in screen.text(),
+              "unsolicited-paste initial TUI")
+        os.write(master, b"\x1b[200~")
+        # Separate marker and contents, ensuring the open marker enters
+        # the reader rather than relying on terminal paste negotiation.
+        time.sleep(0.10)
+        os.write(master, b"Z" * 4096)
+        for _ in range(6):
+            read_more(master, output, screen, 0.10)
+        assert "S=0 E=0" in screen.text(), \
+            "unsolicited incomplete paste mutated committed editor"
+        assert "拼音:" in screen.text(), "terminal lost original UI"
+        os.write(master, b"\x03")
+        proc.wait(timeout=5)
+        assert proc.returncode == 0, \
+            f"Ctrl+C swallowed by unfinished paste; status={proc.returncode}"
+        assert_tty_restored(slave, original)
+        print("VITA_IME_UNSOLICITED_PASTE_OK bounded_discard ctrl_c termios")
+    finally:
+        close_session(master, slave, proc)
+
+
 def signal_run(exe):
     master, slave, original, proc = open_session(exe)
     output = bytearray()
@@ -261,4 +292,5 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         raise SystemExit("usage: test_i011_ime_pty.py /path/to/vita-ime-input-spike")
     keyboard_run(sys.argv[1])
+    unsolicited_paste_run(sys.argv[1])
     signal_run(sys.argv[1])
