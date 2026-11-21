@@ -56,12 +56,13 @@ impl Drop for TerminalGuard {
 fn key_to_input(key: KeyEvent) -> Option<Input> {
     // Explicit submission gesture cannot be confused with repeating Enter
     // on traditional PTYs that do not report key release events.
-    if key.modifiers.contains(KeyModifiers::CONTROL)
-        && matches!(key.code, KeyCode::Char('d'))
-    {
+    if key.modifiers.contains(KeyModifiers::CONTROL) && matches!(key.code, KeyCode::Char('d')) {
         return Some(Input::Submit);
     }
-    if key.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER) {
+    if key
+        .modifiers
+        .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER)
+    {
         if key.modifiers.contains(KeyModifiers::CONTROL)
             && matches!(key.code, KeyCode::Char(' ') | KeyCode::Null)
         {
@@ -149,7 +150,11 @@ fn draw(frame: &mut Frame<'_>, view: &View, submitted: &[String]) {
             "S={} · Vita IME PTY spike · {mode} · F2 switch · Ctrl+D/F4 submit · Ctrl+C exit",
             submitted.len()
         ))
-        .block(Block::default().borders(Borders::ALL).title("Offline input only")),
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Offline input only"),
+        ),
         sections[0],
     );
 
@@ -157,19 +162,19 @@ fn draw(frame: &mut Frame<'_>, view: &View, submitted: &[String]) {
     // wrap the cursor beyond the viewport. All widths are terminal *cells*.
     let label = "文本: ";
     let preedit_label = "拼音: ";
-    let text_columns = (sections[1].width as usize)
-        .saturating_sub(2 + label.width());
-    let preedit_columns = (sections[1].width as usize)
-        .saturating_sub(2 + preedit_label.width());
-    let (text_window, cursor_cell) = viewport(
-        &view.text,
-        &view.cursor_prefix,
-        text_columns,
-    );
+    let text_columns = (sections[1].width as usize).saturating_sub(2 + label.width());
+    let preedit_columns = (sections[1].width as usize).saturating_sub(2 + preedit_label.width());
+    let (text_window, cursor_cell) = viewport(&view.text, &view.cursor_prefix, text_columns);
     let preedit_window = tail_in_cells(&view.composing, preedit_columns);
     frame.render_widget(
-        Paragraph::new(format!("{label}{text_window}\n{preedit_label}{preedit_window}"))
-            .block(Block::default().borders(Borders::ALL).title("Editor / preedit")),
+        Paragraph::new(format!(
+            "{label}{text_window}\n{preedit_label}{preedit_window}"
+        ))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Editor / preedit"),
+        ),
         sections[1],
     );
 
@@ -188,7 +193,11 @@ fn draw(frame: &mut Frame<'_>, view: &View, submitted: &[String]) {
         Paragraph::new(format!(
             "{page}: {candidates}\n1-5/Space/Enter: choose · Tab: page · Esc: cancel"
         ))
-        .block(Block::default().borders(Borders::ALL).title("IME candidates"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("IME candidates"),
+        )
         .wrap(Wrap { trim: false }),
         sections[2],
     );
@@ -206,8 +215,11 @@ fn draw(frame: &mut Frame<'_>, view: &View, submitted: &[String]) {
             .join("\n")
     };
     frame.render_widget(
-        Paragraph::new(lines)
-            .block(Block::default().borders(Borders::ALL).title("Submitted lines")),
+        Paragraph::new(lines).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Submitted lines"),
+        ),
         sections[3],
     );
 
