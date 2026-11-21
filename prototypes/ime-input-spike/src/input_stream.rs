@@ -116,10 +116,10 @@ impl Decoder {
 
     fn parse_escape(&mut self, out: &mut Vec<Decoded>) {
         let known: &[(&[u8], Option<Input>)] = &[
-            (b"\x1b[200~", None), // enter discard-only paste
-            (b"\x1b[201~", None), // stray end marker
+            (b"\x1b[200~", None),                 // enter discard-only paste
+            (b"\x1b[201~", None),                 // stray end marker
             (b"\x1bOQ", Some(Input::ToggleMode)), // F2
-            (b"\x1bOS", Some(Input::Submit)), // F4
+            (b"\x1bOS", Some(Input::Submit)),     // F4
             (b"\x1b[12~", Some(Input::ToggleMode)),
             (b"\x1b[14~", Some(Input::Submit)),
             (b"\x1b[D", Some(Input::Left)),
@@ -211,16 +211,10 @@ mod tests {
             parser.feed(&[0xa0]),
             vec![Decoded::Editor(Input::Char('你'))]
         );
-        assert_eq!(
-            parser.feed(&[0x04]),
-            vec![Decoded::Editor(Input::Submit)]
-        );
+        assert_eq!(parser.feed(&[0x04]), vec![Decoded::Editor(Input::Submit)]);
         assert_eq!(
             parser.feed(b"\r\r"),
-            vec![
-                Decoded::Editor(Input::Enter),
-                Decoded::Editor(Input::Enter)
-            ]
+            vec![Decoded::Editor(Input::Enter), Decoded::Editor(Input::Enter)]
         );
     }
 
@@ -232,10 +226,7 @@ mod tests {
         assert!(parser.paste_tail.len() <= PASTE_END.len());
         assert_eq!(parser.feed(&[0x03]), vec![Decoded::Exit]);
         assert!(!parser.in_paste);
-        assert_eq!(
-            parser.feed(b"x"),
-            vec![Decoded::Editor(Input::Char('x'))]
-        );
+        assert_eq!(parser.feed(b"x"), vec![Decoded::Editor(Input::Char('x'))]);
     }
 
     #[test]
@@ -243,23 +234,14 @@ mod tests {
         let mut parser = Decoder::new();
         assert!(parser.feed(b"\x1b[200~secret\x1b[201~").is_empty());
         assert!(!parser.in_paste);
-        assert_eq!(
-            parser.feed(b"y"),
-            vec![Decoded::Editor(Input::Char('y'))]
-        );
+        assert_eq!(parser.feed(b"y"), vec![Decoded::Editor(Input::Char('y'))]);
     }
 
     #[test]
     fn handles_arrows_function_keys_and_bounded_unknown_escape() {
         let mut parser = Decoder::new();
-        assert_eq!(
-            parser.feed(b"\x1b[D"),
-            vec![Decoded::Editor(Input::Left)]
-        );
-        assert_eq!(
-            parser.feed(b"\x1bOS"),
-            vec![Decoded::Editor(Input::Submit)]
-        );
+        assert_eq!(parser.feed(b"\x1b[D"), vec![Decoded::Editor(Input::Left)]);
+        assert_eq!(parser.feed(b"\x1bOS"), vec![Decoded::Editor(Input::Submit)]);
         assert_eq!(
             parser.feed(b"\x1bOQ"),
             vec![Decoded::Editor(Input::ToggleMode)]
@@ -275,9 +257,6 @@ mod tests {
         parser.paste_since = Some(Instant::now() - PASTE_TIMEOUT);
         assert!(parser.tick().is_empty());
         assert!(!parser.in_paste);
-        assert_eq!(
-            parser.feed(b"z"),
-            vec![Decoded::Editor(Input::Char('z'))]
-        );
+        assert_eq!(parser.feed(b"z"), vec![Decoded::Editor(Input::Char('z'))]);
     }
 }
