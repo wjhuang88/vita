@@ -91,8 +91,9 @@ def keyboard_run(exe):
         before_commit_count = observed.count("国".encode())
         os.write(master, b"\r")  # only confirm candidate, not submit
         until(master, observed,
-              lambda: observed.count("国".encode()) > before_commit_count,
-              "committed candidate rendered in editor")
+              lambda: observed.count("国".encode()) > before_commit_count
+              and b"E=2" in observed,
+              "committed two-grapheme candidate rendered in editor")
         assert b"S=1" not in observed, \
             "Enter mistakenly submitted the input to the Agent/demo"
         # Repeating Enter cannot submit: only an explicit different gesture.
