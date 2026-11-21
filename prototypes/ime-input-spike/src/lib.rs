@@ -460,7 +460,12 @@ mod tests {
             e.handle(Input::NextPage);
             let page = e.view();
             assert!(page.page >= 1, "shi must have multiple candidate pages");
-            let expected = page.candidates.first().expect("visible candidate").1.clone();
+            let expected = page
+                .candidates
+                .first()
+                .expect("visible candidate")
+                .1
+                .clone();
             assert_eq!(e.handle(confirm), Outcome::Updated);
             assert_eq!(e.text(), expected);
             assert!(e.composing().is_empty());
@@ -479,5 +484,4 @@ mod tests {
         assert!(!e.text().is_empty());
         assert!(matches!(e.handle(Input::Submit), Outcome::Submitted(_)));
     }
-
 }
