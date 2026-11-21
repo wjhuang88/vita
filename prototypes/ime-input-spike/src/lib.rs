@@ -93,15 +93,22 @@ impl<'e> Editor<'e> {
             cursor_prefix,
             composing,
             mode: self.mode,
-            candidates: candidates.iter().skip(start).take(PAGE_SIZE)
-                .enumerate().map(|(i, s)| (i + 1, s.clone())).collect(),
+            candidates: candidates
+                .iter()
+                .skip(start)
+                .take(PAGE_SIZE)
+                .enumerate()
+                .map(|(i, s)| (i + 1, s.clone()))
+                .collect(),
             page: self.page,
             pages,
         }
     }
 
     fn byte_at_cursor(&self) -> usize {
-        self.text.grapheme_indices(true).nth(self.cursor)
+        self.text
+            .grapheme_indices(true)
+            .nth(self.cursor)
             .map_or(self.text.len(), |(pos, _)| pos)
     }
 
@@ -132,7 +139,10 @@ impl<'e> Editor<'e> {
         if self.cursor == 0 {
             return false;
         }
-        let from = self.text.grapheme_indices(true).nth(self.cursor - 1)
+        let from = self
+            .text
+            .grapheme_indices(true)
+            .nth(self.cursor - 1)
             .map_or(0, |(pos, _)| pos);
         let to = self.byte_at_cursor();
         self.text.replace_range(from..to, "");
@@ -145,7 +155,10 @@ impl<'e> Editor<'e> {
         if from == self.text.len() {
             return false;
         }
-        let to = self.text.grapheme_indices(true).nth(self.cursor + 1)
+        let to = self
+            .text
+            .grapheme_indices(true)
+            .nth(self.cursor + 1)
             .map_or(self.text.len(), |(pos, _)| pos);
         self.text.replace_range(from..to, "");
         true
@@ -194,8 +207,16 @@ impl<'e> Editor<'e> {
                 if active {
                     self.flush_raw_preedit();
                 }
-                let pasted: String = value.chars().take(MAX_PASTE_CHARS)
-                    .map(|c| if c == '\n' || c == '\r' || c == '\t' { ' ' } else { c })
+                let pasted: String = value
+                    .chars()
+                    .take(MAX_PASTE_CHARS)
+                    .map(|c| {
+                        if c == '\n' || c == '\r' || c == '\t' {
+                            ' '
+                        } else {
+                            c
+                        }
+                    })
                     .collect();
                 self.insert(&pasted);
             }
@@ -311,7 +332,10 @@ mod tests {
         let mut e = Editor::new(&engine);
         type_keys(&mut e, "zhongguo");
         assert_eq!(e.composing(), "zhongguo");
-        assert_eq!(e.view().candidates.first().map(|(_, s)| s.as_str()), Some("中国"));
+        assert_eq!(
+            e.view().candidates.first().map(|(_, s)| s.as_str()),
+            Some("中国")
+        );
         assert_eq!(e.handle(Input::Enter), Outcome::Updated);
         assert_eq!(e.text(), "中国");
         assert!(e.composing().is_empty());
@@ -350,7 +374,10 @@ mod tests {
     fn external_utf8_paste_is_never_reinterpreted_as_pinyin() {
         let engine = PinyinEngine::new();
         let mut e = Editor::new(&engine);
-        assert_eq!(e.handle(Input::Paste("你好, Vita 👩‍💻".into())), Outcome::Updated);
+        assert_eq!(
+            e.handle(Input::Paste("你好, Vita 👩‍💻".into())),
+            Outcome::Updated
+        );
         assert_eq!(e.text(), "你好, Vita 👩‍💻");
         assert_eq!(e.handle(Input::Backspace), Outcome::Updated);
         assert_eq!(e.text(), "你好, Vita ");
@@ -366,7 +393,11 @@ mod tests {
         e.handle(Input::Paste("\x1b]52;secret\x07你\n好\u{202e}A".into()));
         assert_eq!(e.text(), "]52;secret你 好A");
         // Escape/control bytes are absent, even if literal printable text remains.
-        assert!(!e.text().chars().any(|c| c.is_control() || is_bidi_control(c)));
+        assert!(
+            !e.text()
+                .chars()
+                .any(|c| c.is_control() || is_bidi_control(c))
+        );
     }
 
     #[test]
