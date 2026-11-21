@@ -9,10 +9,10 @@ Related but independent: [VITA-002-A #30](https://github.com/wjhuang88/vita/issu
 ## Immutable intake / user-authorized outcome
 
 The owner approved advancing the *candidate* native Rust TUI +
-\`inputx-pinyin\` + Kmscon architecture, **not preapproving** Kmscon as a
+`inputx-pinyin` + Kmscon architecture, **not preapproving** Kmscon as a
 final display layer, physical hardware claims or any root/USB writes.
-Baseline source main: \`966f40df8d9cb34094b6063ea2ceecf66aefe905\`.
-Development branch: \`feat/vita-002-k-ime-spike\`.
+Baseline source main: `966f40df8d9cb34094b6063ea2ceecf66aefe905`.
+Development branch: `feat/vita-002-k-ime-spike`.
 
 ### Constraints
 
@@ -26,13 +26,13 @@ Development branch: \`feat/vita-002-k-ime-spike\`.
   no physical device writes, no automatic learning persistence.
 - **Soft:** prefer lightweight Rust native crate and reusable Ratatui
   interface; measure rather than assume CJK font/compositor cost.
-- **Assumptions to test:** \`inputx-pinyin 1.4.0\` compiles in pinned
+- **Assumptions to test:** `inputx-pinyin 1.4.0` compiles in pinned
   Rust/musl; candidate quality sufficient; Kmscon has suitable
   Alpine 3.24 packaging, DRM/seat/PTY and font support.
 
 ## Stage 1 work selected for this PR
 
-- Separate published runnable \`prototypes/ime-input-spike\` whose
+- Separate published runnable `prototypes/ime-input-spike` whose
   Rust input state machine has candidate selection, paging, mode
   changes, raw composition cancellation, input bounds, grapheme
   deletion, Unicode paste and ANSI/control/bidi stripping.
@@ -43,7 +43,7 @@ Development branch: \`feat/vita-002-k-ime-spike\`.
   send Tool or Agent actions.
 - Focused tests, self-test and Python real PTY smoke with Ctrl+C and
   termios restore, plus fixed 1.99.0 Rust and musl compilation in
-  \`.github/workflows/i011-chinese-ime-tui.yml\`.
+  `.github/workflows/i011-chinese-ime-tui.yml`.
 - Readonly source research: [inputx public API](https://docs.rs/inputx-pinyin/1.4.0/inputx_pinyin/);
   [session commit and L0 semantics](https://docs.rs/inputx-pinyin/1.4.0/inputx_pinyin/session/struct.Session.html);
   [Kmscon upstream](https://github.com/kmscon/kmscon).
