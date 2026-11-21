@@ -21,12 +21,18 @@ def run(exe: str) -> None:
     try:
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
         original = termios.tcgetattr(slave)
+        def acquire_tty():
+            # Session leader must claim the slave as its controlling tty;
+            # setsid alone leaves /dev/tty unavailable to terminal libraries.
+            os.setsid()
+            fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+
         proc = subprocess.Popen(
             [exe],
             stdin=slave,
             stdout=slave,
             stderr=slave,
-            start_new_session=True,
+            preexec_fn=acquire_tty,
             close_fds=True,
         )
         deadline = time.monotonic() + TIMEOUT
@@ -66,7 +72,14 @@ def run(exe: str) -> None:
             if stopped and proc.poll() is not None:
                 break
         if proc.poll() is None:
-            raise AssertionError("PTY UI did not exit after Ctrl+C")
+            # Safe fixed-fixture transcript only: no credentials/model data.
+            debug = bytes(observed[-1200:]).decode("utf-8", errors="replace")
+            debug = debug.replace("\x1b", "<ESC>")
+            raise AssertionError(
+                f"PTY UI did not exit after Ctrl+C; sent={sent}, "
+                f"resized={resized}, stopped={stopped}, "
+                f"transcript_tail={debug!r}"
+            )
         output = bytes(observed).decode("utf-8", errors="replace")
         assert proc.returncode == 0, f"PTY UI exit status {proc.returncode}"
         assert sent, "TUI never rendered its initial screen"
