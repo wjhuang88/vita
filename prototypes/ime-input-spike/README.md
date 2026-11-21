@@ -5,7 +5,7 @@ production input method, and not a replacement for Linux's physical console.
 Tracking: [VITA-002-K #40](https://github.com/wjhuang88/vita/issues/40)
 and [I011](../../docs/iterations/I011-chinese-ime-tui-spike.md).
 
-The code proves whether the independent Rust \`inputx-pinyin\` engine can
+The code proves whether the independent Rust `inputx-pinyin` engine can
 feed a single-user, non-root Rust TUI without an external IME daemon,
 without Talos/model access, and without committing a composing candidate
 as an Agent command. It does **not** render fonts itself or configure DRM/KMS.
@@ -14,13 +14,13 @@ as an Agent command. It does **not** render fonts itself or configure DRM/KMS.
 
 Requires Rust **1.99.0** and a PTY terminal supporting UTF-8 and key events.
 
-\`\`\`sh
+```sh
 cargo +1.99.0 test --manifest-path prototypes/ime-input-spike/Cargo.toml
 cargo +1.99.0 run --manifest-path prototypes/ime-input-spike/Cargo.toml
 cargo +1.99.0 run --manifest-path prototypes/ime-input-spike/Cargo.toml -- --self-test
-\`\`\`
+```
 
-The session starts in Chinese mode. Enter \`zhongguo\` to see candidates;
+The session starts in Chinese mode. Enter `zhongguo` to see candidates;
 choose using **1–5**, **Space** or **Enter**, and press **Enter again**
 to submit the committed text to the *local* demonstration panel.
 **F2** or **Ctrl+Space** (when the terminal sends it) toggles English mode;
@@ -43,14 +43,14 @@ approval, terminal recovery or system-wide keyboard interception.
 
 ## Reproducible engineering checks
 
-\`\`\`sh
+```sh
 python3 scripts/ci/test_i011_ime_pty.py \
   prototypes/ime-input-spike/target/debug/vita-ime-input-spike
-\`\`\`
+```
 
 The CI uses real PTY key input, a bounded resize and Ctrl+C, checks UTF-8
 candidate bytes and termios restoration, then compiles a Rust
-\`x86_64-unknown-linux-musl\` binary. A passing host PTY check **does not**
+`x86_64-unknown-linux-musl` binary. A passing host PTY check **does not**
 prove a Linux kernel VT or Kmscon physical console.
 
 Kmscon/DRM and a genuinely independent ASCII recovery path are **Stage 2**
@@ -60,10 +60,10 @@ It is a hypothesis, not a selected shipped OS component.
 
 ## Dependencies and distribution policy
 
-Pinned for this experiment: \`inputx-pinyin =1.4.0\`, \`ratatui =0.30.0\`,
-\`crossterm =0.29.0\`, \`unicode-segmentation =1.12.0\`, and
-\`unicode-width =0.2.0\`.
-\`inputx-pinyin\` source is MIT OR Apache-2.0, but its embedded dictionary
+Pinned for this experiment: `inputx-pinyin =1.4.0`, `ratatui =0.30.0`,
+`crossterm =0.29.0`, `unicode-segmentation =1.12.0`, and
+`unicode-width =0.2.0`.
+`inputx-pinyin` source is MIT OR Apache-2.0, but its embedded dictionary
 has a **separate upstream source/attribution chain** (Unihan, pypinyin,
 jieba, Leipzig, SUBTLEX). The entire resolved dependency/license and
 dictionary data audit must be completed before embedding it into a
