@@ -1,7 +1,8 @@
 # I011 — Offline Chinese IME and pure TUI feasibility
 
-Status: **Active (2026-11-21)** — Stage 1 branch implementation;
-no passed exact-head CI or independent AI review claimed yet.
+Status: **Active (2026-11-21)** — Stage 1 code VM-independent PTY and
+musl CI proof passed at pinned candidate head; **independent final-head
+re-review / PR merge OPEN**. Stages 2/3 unstarted.
 Owner: [VITA-002-K](../backlog/active/VITA-002-K-chinese-ime.md) /
 [#40](https://github.com/wjhuang88/vita/issues/40).
 Related but independent: [VITA-002-A #30](https://github.com/wjhuang88/vita/issues/30).
@@ -42,9 +43,9 @@ Development branch: `feat/vita-002-k-ime-spike`.
   bounded paste/control/bidi stripping; no live bracketed-paste claims.
 - Host-only terminal frontend under crossterm/ratatui; no Talos SDK,
   no secrets, network, external IME service, host disk/USB operations.
-- The standard Enter key confirms a candidate and only a later Enter
-  submits a prepared buffer to a **demo-only** list; the UI does not
-  send Tool or Agent actions.
+- Enter can confirm a candidate but **never submits** a line; only an
+  explicit Ctrl+D/F4 commits prepared text to a **demo-only** list.
+  Repeated Enter cannot invoke Tool or Agent actions.
 - Focused tests, self-test and Python real PTY smoke with Ctrl+C and
   termios restore, plus fixed 1.99.0 Rust and musl compilation in
   `.github/workflows/i011-chinese-ime-tui.yml`.
@@ -65,16 +66,44 @@ The updated branch fixes page-relative Space/Enter, requires explicit
 Ctrl+D/F4 for submit, adds cursor-following Unicode viewport and
 catchable termination flags, **disables live bracketed paste** instead
 of using an unbounded decoder, and exercises real PTY state transitions,
-resize, Ctrl+C and SIGTERM. These changes remain unproven until the
-*current* exact HEAD CI and independent re-review finish. Real Kmscon
+resize, Ctrl+C and SIGTERM. The code and PTY tests passed on the pinned
+candidate HEAD shown below; final documentation HEAD / independent
+re-review must still be separately validated. Real Kmscon
 rendering/keyboard/boot remains a separate [Stage-2 #42](https://github.com/wjhuang88/vita/issues/42).
 
 ## Stage 1 validation log
 
-**Not yet executed on GitHub at baseline authoring:** source is
-published on a PR branch to trigger exact-code-head compilation,
-unit tests, PTY smoke and musl target checks. CI pass/error and
-reviewer findings must be appended here rather than guessed.
+**Stage 1 verified candidate code HEAD (2026-11-21):**
+`2ef7bb0fbcc56dfaf0d5206b933e8532ae4a05d8`;
+[I011 run 44887334764](https://github.com/wjhuang88/vita/actions/runs/44887334764)
+**2/2 successful jobs** (governance and ime-pty), using Rust **1.99.0**:
+
+- `cargo fmt --check`, `cargo clippy --all-targets -D warnings`,
+  10 input/editor library tests, 2 terminal-viewport tests: **PASS**.
+- `--self-test`:
+  `VITA_IME_SELFTEST_OK pinyin=zhongguo commit=中国 submit=explicit`.
+- **Actual nonroot PTY** TUI with a minimal ANSI screen reconstruction:
+  `VITA_IME_PTY_OK ime_commit explicit_submit resize ctrl_c termios`.
+  Confirms screen-visible Pinyin candidate, separate Enter confirmation
+  from Ctrl+D submission, displayed submitted count, resize redraw,
+  actual Ctrl+C key-byte exit and terminal attribute restore.
+- **Independent signal path**:
+  `VITA_IME_SIGNAL_OK sigterm termios_restore`. It is not silently
+  replaced by a SIGINT signal injection.
+- `x86_64-unknown-linux-musl --release` builds a **static-pie** ELF
+  successfully; binary SHA-256:
+  `6ad7f37e1afc6fa4a643048b824d9ee45e9150c9442a00124cc2df61d3e7e568`.
+  This is a compile/host-PTY proof, **not** a Kmscon/guest/native display
+  or a product Alpine image validation.
+- [I011 CI provenance artifact #14699903691](https://github.com/wjhuang88/vita/actions/runs/44887334764/artifacts/14699903691)
+  includes dependency tree, build metadata and release SHA/size.
+- Copilot review on earlier `f08d10e3` surfaced six substantive
+  findings. Changes described above address them, but **final HEAD
+  fresh review and resolved thread verification remain mandatory**.
+  Do not treat the earlier review as approval.
+
+Later documentation/PR-head commits must re-run exact-HEAD CI;
+the candidate result does not automatically validate a changed SHA.
 
 Manual/physical Chinese input validation: **NOT DONE**.
 BIOS/UEFI guest native DRM/KMS display: **NOT DONE**.
@@ -96,6 +125,6 @@ documented technical choice instead of silently adding Wayland.
 ## Durable resume checkpoint
 
 For continuation after PR creation, use [Issue #40](https://github.com/wjhuang88/vita/issues/40),
-the new PR (link to be recorded), its exact HEAD checks/reviewer
+[PR #41](https://github.com/wjhuang88/vita/pull/41), its exact HEAD checks/reviewer
 comments, this iteration log and the runnable
 [prototype README](../../prototypes/ime-input-spike/README.md).
