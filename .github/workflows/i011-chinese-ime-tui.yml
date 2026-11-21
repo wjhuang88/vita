@@ -1,0 +1,66 @@
+name: I011 Chinese IME PTY Spike
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/i011-chinese-ime-tui.yml"
+      - "prototypes/ime-input-spike/**"
+      - "scripts/ci/test_i011_ime_pty.py"
+      - "docs/iterations/I011-chinese-ime-tui-spike.md"
+      - "docs/backlog/active/VITA-002-K-chinese-ime.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate repository governance
+        run: sh scripts/validate_project_governance.sh .
+
+  ime-pty:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pin Rust 1.99 and musl target
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal --component rustfmt,clippy
+          rustup target add x86_64-unknown-linux-musl --toolchain 1.99.0
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq musl-tools
+      - name: Check formatting and compile/unit tests
+        run: |
+          cargo +1.99.0 fmt --manifest-path prototypes/ime-input-spike/Cargo.toml -- --check
+          cargo +1.99.0 test --manifest-path prototypes/ime-input-spike/Cargo.toml
+          cargo +1.99.0 clippy --manifest-path prototypes/ime-input-spike/Cargo.toml --all-targets -- -D warnings
+      - name: Run actual PTY UI, Chinese conversion, resize and Ctrl+C
+        run: |
+          cargo +1.99.0 build --manifest-path prototypes/ime-input-spike/Cargo.toml
+          prototypes/ime-input-spike/target/debug/vita-ime-input-spike --self-test
+          python3 scripts/ci/test_i011_ime_pty.py prototypes/ime-input-spike/target/debug/vita-ime-input-spike
+      - name: Check Alpine/musl target compilation (no guest claim)
+        run: |
+          cargo +1.99.0 build --manifest-path prototypes/ime-input-spike/Cargo.toml --target x86_64-unknown-linux-musl --release
+          file prototypes/ime-input-spike/target/x86_64-unknown-linux-musl/release/vita-ime-input-spike
+          sha256sum prototypes/ime-input-spike/target/x86_64-unknown-linux-musl/release/vita-ime-input-spike
+      - name: Record dependency and artifact inventory (not a release)
+        if: always()
+        run: |
+          mkdir -p i011-ime-logs
+          cargo +1.99.0 metadata --manifest-path prototypes/ime-input-spike/Cargo.toml --format-version 1 > i011-ime-logs/cargo-metadata.json || true
+          cargo +1.99.0 tree --manifest-path prototypes/ime-input-spike/Cargo.toml > i011-ime-logs/dependency-tree.txt || true
+          if test -f prototypes/ime-input-spike/target/x86_64-unknown-linux-musl/release/vita-ime-input-spike; then
+            stat -c '%s %n' prototypes/ime-input-spike/target/x86_64-unknown-linux-musl/release/vita-ime-input-spike > i011-ime-logs/release-size.txt
+            sha256sum prototypes/ime-input-spike/target/x86_64-unknown-linux-musl/release/vita-ime-input-spike > i011-ime-logs/release-sha256.txt
+          fi
+      - name: Preserve limited engineering provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i011-chinese-ime-pty-provenance
+          path: i011-ime-logs/
+          if-no-files-found: warn
