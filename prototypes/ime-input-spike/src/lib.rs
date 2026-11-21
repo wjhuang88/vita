@@ -22,6 +22,8 @@ pub enum Input {
     Left,
     Right,
     Enter,
+    /// Deliberately distinct from Enter: legacy PTYs cannot prove key release.
+    Submit,
     Escape,
     ToggleMode,
     NextPage,
@@ -183,7 +185,7 @@ impl<'e> Editor<'e> {
     }
 
     fn commit_first_or_raw(&mut self) {
-        if !self.commit_candidate(0) {
+        if !self.commit_candidate(self.page * PAGE_SIZE) {
             self.flush_raw_preedit();
         }
     }
@@ -272,16 +274,20 @@ impl<'e> Editor<'e> {
                 }
             }
             Input::Enter => {
+                // No regular Enter can submit: PTYs without key-release events
+                // cannot distinguish repeat of candidate confirmation.
                 if active {
-                    // Key safety: first Enter commits an IME candidate; only
-                    // a distinct second Enter submits the editor buffer.
                     self.commit_first_or_raw();
-                } else if !self.text.is_empty() {
-                    self.cursor = 0;
-                    return Outcome::Submitted(std::mem::take(&mut self.text));
                 } else {
                     return Outcome::Ignored;
                 }
+            }
+            Input::Submit => {
+                if active || self.text.is_empty() {
+                    return Outcome::Ignored;
+                }
+                self.cursor = 0;
+                return Outcome::Submitted(std::mem::take(&mut self.text));
             }
             Input::Char(c) => {
                 if self.mode == Mode::Chinese && c.is_ascii_alphabetic() {
@@ -339,7 +345,9 @@ mod tests {
         assert_eq!(e.handle(Input::Enter), Outcome::Updated);
         assert_eq!(e.text(), "中国");
         assert!(e.composing().is_empty());
-        assert_eq!(e.handle(Input::Enter), Outcome::Submitted("中国".into()));
+        assert_eq!(e.handle(Input::Enter), Outcome::Ignored);
+        assert_eq!(e.handle(Input::Enter), Outcome::Ignored); // repeat is safe
+        assert_eq!(e.handle(Input::Submit), Outcome::Submitted("中国".into()));
     }
 
     #[test]
@@ -353,7 +361,9 @@ mod tests {
         assert_eq!(e.handle(Input::Escape), Outcome::Updated);
         assert_eq!(e.text(), "中国");
         assert!(e.composing().is_empty());
-        assert_eq!(e.handle(Input::Enter), Outcome::Submitted("中国".into()));
+        assert_eq!(e.handle(Input::Enter), Outcome::Ignored);
+        assert_eq!(e.handle(Input::Enter), Outcome::Ignored); // repeat is safe
+        assert_eq!(e.handle(Input::Submit), Outcome::Submitted("中国".into()));
     }
 
     #[test]
@@ -432,6 +442,7 @@ mod tests {
         let engine = PinyinEngine::new();
         let mut e = Editor::new(&engine);
         assert_eq!(e.handle(Input::Enter), Outcome::Ignored);
+        assert_eq!(e.handle(Input::Submit), Outcome::Ignored);
         assert_eq!(e.handle(Input::NextPage), Outcome::Ignored);
         type_keys(&mut e, "shi");
         let before = e.view().page;
@@ -440,4 +451,33 @@ mod tests {
         e.handle(Input::PreviousPage);
         assert_eq!(e.view().page, 0);
     }
+    #[test]
+    fn page_two_confirmation_uses_visible_candidate_for_space_and_enter() {
+        let engine = PinyinEngine::new();
+        for confirm in [Input::Space, Input::Enter] {
+            let mut e = Editor::new(&engine);
+            type_keys(&mut e, "shi");
+            e.handle(Input::NextPage);
+            let page = e.view();
+            assert!(page.page >= 1, "shi must have multiple candidate pages");
+            let expected = page.candidates.first().expect("visible candidate").1.clone();
+            assert_eq!(e.handle(confirm), Outcome::Updated);
+            assert_eq!(e.text(), expected);
+            assert!(e.composing().is_empty());
+            assert_eq!(e.handle(Input::Submit), Outcome::Submitted(expected));
+        }
+    }
+
+    #[test]
+    fn secret_field_simulated_submit_requires_distinct_event() {
+        let engine = PinyinEngine::new();
+        let mut e = Editor::new(&engine);
+        type_keys(&mut e, "nihao");
+        assert_eq!(e.handle(Input::Submit), Outcome::Ignored);
+        e.handle(Input::Enter);
+        assert_eq!(e.handle(Input::Enter), Outcome::Ignored);
+        assert!(!e.text().is_empty());
+        assert!(matches!(e.handle(Input::Submit), Outcome::Submitted(_)));
+    }
+
 }
