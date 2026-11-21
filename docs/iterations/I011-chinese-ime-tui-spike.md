@@ -23,9 +23,12 @@ Development branch: `feat/vita-002-k-ime-spike`.
 - **Hard:** IME selection and the *separate* text-submit action are
   different key gestures. Standard Enter **never submits** (auto-repeat
   cannot be safely distinguished on legacy PTY); Ctrl+D/F4 does. Normal
-  host-IME committed Unicode bypasses Pinyin; bracketed-paste parsing is
-  disabled pending a bounded streaming decoder. ASCII fallback and
-  signal-safe terminal restoration are required.
+  host-IME committed Unicode bypasses Pinyin; **Crossterm's input
+  event parser is never called** because it buffers unsolicited
+  bracketed paste without a cap. A bounded raw byte decoder discards
+  paste, preserves Ctrl+C and refuses unknown ANSI/CSI suffix leakage.
+  Safe arbitrary text paste remains a future requirement. ASCII
+  fallback and signal-safe terminal restoration are required.
 - **Hard:** current rootfs/boot chain and QEMU ISO fixtures unchanged,
   no physical device writes, no automatic learning persistence.
 - **Soft:** prefer lightweight Rust native crate and reusable Ratatui
@@ -70,6 +73,32 @@ resize, Ctrl+C and SIGTERM. The code and PTY tests passed on the pinned
 candidate HEAD shown below; final documentation HEAD / independent
 re-review must still be separately validated. Real Kmscon
 rendering/keyboard/boot remains a separate [Stage-2 #42](https://github.com/wjhuang88/vita/issues/42).
+
+## Second independent review — mandatory corrections (2026-11-21)
+
+The second Copilot review of [PR #41](https://github.com/wjhuang88/vita/pull/41)
+at HEAD `75dbbbcee593a14320ef34fd532af60218809d11`
+**confirmed the six earlier issues resolved** but identified two further
+actionable findings:
+
+1. HIGH — `crossterm::event::poll/read` uses a default-enabled
+   bracketed-paste parser, which can be activated by unsolicited
+   `ESC[200~` even without `EnableBracketedPaste`. It can retain
+   unlimited input and swallow actual Ctrl+C.
+2. MEDIUM — the 100ms idle loop rebuilt `Session::candidates()` and
+   the editor view with no state change.
+
+The branch now **does not invoke Crossterm event parsing**. A fixed
+512-byte raw reader connects to a 16-slot backpressured ordered
+queue and a bounded UTF-8/CSI decoder, preserving Ctrl+C even during
+incomplete unsolicited paste and dropping the paste contents entirely.
+Unknown CSI suffixes are discarded, not inserted as text. The UI
+repaints only for actual editor changes or SIGWINCH; it does not
+recalculate candidates on idle polls. Real PTY and parser tests have
+been extended to validate these cases. **These changes require new
+exact-HEAD CI and fresh independent Copilot review** before merge;
+neither an earlier green test nor first-round review can approve the
+new implementation.
 
 ## Stage 1 validation log
 
