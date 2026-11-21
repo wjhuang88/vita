@@ -1,18 +1,22 @@
 //! A standalone, offline PTY TUI; does not embed or operate Vita/Talos.
+mod input_stream;
+
 use std::{
-    io,
+    io::{self, Read},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
+        mpsc::{self, Receiver, RecvTimeoutError},
     },
+    thread,
     time::Duration,
 };
 
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use input_stream::{Decoded, Decoder};
 use inputx_pinyin::PinyinEngine;
 use ratatui::{
     Frame, Terminal,
@@ -21,18 +25,17 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Wrap},
 };
 use signal_hook::{
-    consts::signal::{SIGHUP, SIGINT, SIGTERM},
+    consts::signal::{SIGHUP, SIGINT, SIGTERM, SIGWINCH},
     flag,
 };
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use vita_ime_input_spike::{Editor, Input, Mode, Outcome, View};
 
-/// Bracketed paste stays disabled intentionally. Crossterm's Event::Paste
-/// accumulates an unbounded payload before the application can reject it.
-/// Normal UTF-8 key events remain usable for externally committed text.
-/// A bounded *streaming decoder* is a future requirement before enabling
-/// bracketed paste in a shipping TUI.
+/// Do not enable bracketed paste or call Crossterm's event reader:
+/// its default parser can buffer unsolicited/incomplete paste without a cap.
+/// Input is read in fixed chunks and decoded by our own bounded stream
+/// handler. Even an unsolicited 200~ marker cannot swallow Ctrl+C.
 struct TerminalGuard;
 
 impl TerminalGuard {
@@ -53,40 +56,34 @@ impl Drop for TerminalGuard {
     }
 }
 
-fn key_to_input(key: KeyEvent) -> Option<Input> {
-    // Explicit submission gesture cannot be confused with repeating Enter
-    // on traditional PTYs that do not report key release events.
-    if (key.modifiers.contains(KeyModifiers::CONTROL) && matches!(key.code, KeyCode::Char('d')))
-        || matches!(key.code, KeyCode::Char('\u{4}'))
-    {
-        return Some(Input::Submit);
-    }
-    if key
-        .modifiers
-        .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER)
-    {
-        if key.modifiers.contains(KeyModifiers::CONTROL)
-            && matches!(key.code, KeyCode::Char(' ') | KeyCode::Null)
-        {
-            return Some(Input::ToggleMode);
+/// A single bounded mailbox connects the raw PTY reader to the TUI owner.
+/// The raw reader never allocates more than one 512-byte input chunk;
+/// noncritical input can be dropped under flood, while Ctrl+C is signaled
+/// *before* mailbox send and therefore remains operational under backpressure.
+fn spawn_raw_reader(stop: Arc<AtomicBool>) -> Receiver<Vec<u8>> {
+    let (sender, receiver) = mpsc::sync_channel(16);
+    thread::spawn(move || {
+        let stdin = io::stdin();
+        let mut input = stdin.lock();
+        let mut bytes = [0_u8; 512];
+        loop {
+            match input.read(&mut bytes) {
+                Ok(0) => break,
+                Ok(len) => {
+                    if bytes[..len].contains(&0x03) {
+                        stop.store(true, Ordering::Relaxed);
+                    }
+                    if sender.try_send(bytes[..len].to_vec()).is_err() {
+                        // Bounded failure, never queue untrusted bytes
+                        // indefinitely or block Ctrl+C behind the queue.
+                    }
+                }
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+                Err(_) => break,
+            }
         }
-        return None;
-    }
-    match key.code {
-        KeyCode::F(2) => Some(Input::ToggleMode),
-        KeyCode::F(4) => Some(Input::Submit),
-        KeyCode::Backspace => Some(Input::Backspace),
-        KeyCode::Delete => Some(Input::Delete),
-        KeyCode::Enter => Some(Input::Enter),
-        KeyCode::Esc => Some(Input::Escape),
-        KeyCode::Left => Some(Input::Left),
-        KeyCode::Right => Some(Input::Right),
-        KeyCode::Tab | KeyCode::PageDown => Some(Input::NextPage),
-        KeyCode::BackTab | KeyCode::PageUp => Some(Input::PreviousPage),
-        KeyCode::Char(' ') => Some(Input::Space),
-        KeyCode::Char(c) => Some(Input::Char(c)),
-        _ => None,
-    }
+    });
+    receiver
 }
 
 /// Return a one-line cursor-following viewport. The input's grapheme cursor
@@ -237,42 +234,65 @@ fn draw(frame: &mut Frame<'_>, view: &View, submitted: &[String]) {
 
 fn run_tui() -> io::Result<()> {
     let stop = Arc::new(AtomicBool::new(false));
+    let resized = Arc::new(AtomicBool::new(false));
     for signal in [SIGTERM, SIGINT, SIGHUP] {
         flag::register(signal, Arc::clone(&stop))?;
     }
+    flag::register(SIGWINCH, Arc::clone(&resized))?;
+
     let _guard = TerminalGuard::enter()?;
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
     let engine = PinyinEngine::new();
     let mut editor = Editor::new(&engine);
     let mut submitted = Vec::new();
+    let mut decoder = Decoder::new();
+    let receiver = spawn_raw_reader(Arc::clone(&stop));
+    let mut dirty = true;
 
     while !stop.load(Ordering::Relaxed) {
-        let view = editor.view();
-        terminal.draw(|frame| draw(frame, &view, &submitted))?;
-        if !event::poll(Duration::from_millis(100))? {
-            continue;
+        if resized.swap(false, Ordering::Relaxed) {
+            terminal.autoresize()?;
+            dirty = true;
         }
-        match event::read()? {
-            Event::Key(key) if key.kind != KeyEventKind::Release => {
-                if key.modifiers.contains(KeyModifiers::CONTROL)
-                    && matches!(key.code, KeyCode::Char('c'))
-                {
-                    break;
-                }
-                if let Some(input) = key_to_input(key)
-                    && let Outcome::Submitted(line) = editor.handle(input)
-                {
-                    // The list is a local demonstration, no Tool/Agent call.
-                    submitted.push(line);
-                    if submitted.len() > 8 {
-                        submitted.remove(0);
+
+        for item in decoder.tick() {
+            if let Decoded::Editor(input) = item
+                && editor.handle(input) == Outcome::Updated
+            {
+                dirty = true;
+            }
+        }
+
+        // No TUI draw / candidate-cache rebuild on idle timeout.
+        if dirty {
+            let view = editor.view();
+            terminal.draw(|frame| draw(frame, &view, &submitted))?;
+            dirty = false;
+        }
+
+        match receiver.recv_timeout(Duration::from_millis(100)) {
+            Ok(bytes) => {
+                for item in decoder.feed(&bytes) {
+                    match item {
+                        Decoded::Exit => stop.store(true, Ordering::Relaxed),
+                        Decoded::Editor(input) => match editor.handle(input) {
+                            Outcome::Updated => dirty = true,
+                            Outcome::Submitted(line) => {
+                                // Local demo list; no Agent Tool call.
+                                submitted.push(line);
+                                if submitted.len() > 8 {
+                                    submitted.remove(0);
+                                }
+                                dirty = true;
+                            }
+                            Outcome::Ignored => {}
+                        },
                     }
                 }
             }
-            Event::Resize(_, _) => terminal.autoresize()?,
-            // No Event::Paste: upstream's decoder has no pre-allocation cap.
-            _ => {}
+            Err(RecvTimeoutError::Timeout) => {}
+            Err(RecvTimeoutError::Disconnected) => break,
         }
     }
     Ok(())
