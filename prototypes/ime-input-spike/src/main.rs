@@ -57,9 +57,10 @@ impl Drop for TerminalGuard {
 }
 
 /// A single bounded mailbox connects the raw PTY reader to the TUI owner.
-/// The raw reader never allocates more than one 512-byte input chunk;
-/// noncritical input can be dropped under flood, while Ctrl+C is signaled
-/// *before* mailbox send and therefore remains operational under backpressure.
+/// The reader holds at most a 512-byte chunk and uses a 16-slot bounded
+/// backpressure queue. Never discard arbitrary chunks: dropping an ESC[200~
+/// marker would reclassify attacker-controlled paste bytes as ordinary text.
+/// Ctrl+C is recognized before queue send and shutdown remains bounded.
 fn spawn_raw_reader(stop: Arc<AtomicBool>) -> Receiver<Vec<u8>> {
     let (sender, receiver) = mpsc::sync_channel(16);
     thread::spawn(move || {
@@ -73,9 +74,10 @@ fn spawn_raw_reader(stop: Arc<AtomicBool>) -> Receiver<Vec<u8>> {
                     if bytes[..len].contains(&0x03) {
                         stop.store(true, Ordering::Relaxed);
                     }
-                    if sender.try_send(bytes[..len].to_vec()).is_err() {
-                        // Bounded failure, never queue untrusted bytes
-                        // indefinitely or block Ctrl+C behind the queue.
+                    // Preserve exact byte order even under flood.
+                    // An incomplete paste start cannot be silently dropped.
+                    if sender.send(bytes[..len].to_vec()).is_err() {
+                        break;
                     }
                 }
                 Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
