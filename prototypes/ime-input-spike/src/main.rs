@@ -146,7 +146,8 @@ fn draw(frame: &mut Frame<'_>, view: &View, submitted: &[String]) {
     };
     frame.render_widget(
         Paragraph::new(format!(
-            "Vita IME PTY spike · {mode} · F2 switch · Ctrl+D/F4 submit · Ctrl+C exit"
+            "S={} · Vita IME PTY spike · {mode} · F2 switch · Ctrl+D/F4 submit · Ctrl+C exit",
+            submitted.len()
         ))
         .block(Block::default().borders(Borders::ALL).title("Offline input only")),
         sections[0],
