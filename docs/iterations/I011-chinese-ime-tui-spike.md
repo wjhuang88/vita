@@ -20,8 +20,11 @@ Development branch: `feat/vita-002-k-ime-spike`.
   Input remains inside the unprivileged Vita session, outside PID1,
   Broker, privileged confirmations, secrets and recovery.
 - **Hard:** IME selection and the *separate* text-submit action are
-  different key events. Host-IME-completed Unicode paste is not fed
-  back into Pinyin; ASCII fallback and safe terminal restoration work.
+  different key gestures. Standard Enter **never submits** (auto-repeat
+  cannot be safely distinguished on legacy PTY); Ctrl+D/F4 does. Normal
+  host-IME committed Unicode bypasses Pinyin; bracketed-paste parsing is
+  disabled pending a bounded streaming decoder. ASCII fallback and
+  signal-safe terminal restoration are required.
 - **Hard:** current rootfs/boot chain and QEMU ISO fixtures unchanged,
   no physical device writes, no automatic learning persistence.
 - **Soft:** prefer lightweight Rust native crate and reusable Ratatui
@@ -35,7 +38,8 @@ Development branch: `feat/vita-002-k-ime-spike`.
 - Separate published runnable `prototypes/ime-input-spike` whose
   Rust input state machine has candidate selection, paging, mode
   changes, raw composition cancellation, input bounds, grapheme
-  deletion, Unicode paste and ANSI/control/bidi stripping.
+  deletion, direct Unicode character editing and library-side test-only
+  bounded paste/control/bidi stripping; no live bracketed-paste claims.
 - Host-only terminal frontend under crossterm/ratatui; no Talos SDK,
   no secrets, network, external IME service, host disk/USB operations.
 - The standard Enter key confirms a candidate and only a later Enter
@@ -48,6 +52,22 @@ Development branch: `feat/vita-002-k-ime-spike`.
   [session commit and L0 semantics](https://docs.rs/inputx-pinyin/1.4.0/inputx_pinyin/session/struct.Session.html);
   [Kmscon upstream](https://github.com/kmscon/kmscon).
   Dictionary lineage and dependencies are not yet approved for release.
+
+## Review-driven corrections (2026-11-21)
+
+Independent reviewer [PR #41](https://github.com/wjhuang88/vita/pull/41)
+identified six actionable failures on an earlier head: page-offset
+selection, SIGTERM terminal restoration, wrapped text cursor, legacy
+Enter repeat, unbounded upstream bracketed-paste buffering, and PTY
+test observability. They are real merge blockers.
+
+The updated branch fixes page-relative Space/Enter, requires explicit
+Ctrl+D/F4 for submit, adds cursor-following Unicode viewport and
+catchable termination flags, **disables live bracketed paste** instead
+of using an unbounded decoder, and exercises real PTY state transitions,
+resize, Ctrl+C and SIGTERM. These changes remain unproven until the
+*current* exact HEAD CI and independent re-review finish. Real Kmscon
+rendering/keyboard/boot remains a separate [Stage-2 #42](https://github.com/wjhuang88/vita/issues/42).
 
 ## Stage 1 validation log
 
