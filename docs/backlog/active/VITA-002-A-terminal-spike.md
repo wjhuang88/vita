@@ -35,6 +35,10 @@ Affected surfaces: Vita会话/设置/受控能力相关模块（按实际方案�
 Documentation: 更新本任务、父级记录和实际运行说明；新增可见操作更新README/用户手册。执行前按NEW-FEATURE与START-ITERATION路由，不自动并入I010。
 Exclusions: 实体硬件中文IME、生产UI、网络写操作。
 
+## 中文输入的独立专项与验收边界（2026-11-21）
+
+用户已批准启动 [#40 / VITA-002-K](VITA-002-K-chinese-ime.md) 的独立 [I011](../../iterations/I011-chinese-ime-tui-spike.md)：先在宿主 PTY 验证纯 Rust IME 的输入/候选/提交与恢复，再在真正的 BIOS+UEFI VM Kmscon 本机显示上验证直接中文键入和安全降级。**本 #30 仍为 Ready、尚未启动完整 A 原型**；K 专项不可替代本任务的 TUI/SDK/尺寸/性能全部验收。不得把宿主终端拼音粘贴记为原生机身中文 IME。
+
 ## Readiness / evidence
 
 范围和验证已明确，可选择进入迭代；Ready不表示已实现或已批准任何真实设备操作。

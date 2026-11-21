@@ -49,3 +49,4 @@ Completed or superseded item detail lives in `archive/`; this file remains the p
 | ID | Priority | Type | Outcome | Required Reads | State |
 | --- | --- | --- | --- | --- | --- |
 | [VITA-002 / #29](https://github.com/wjhuang88/vita/issues/29) | P0 | Epic | Native Agent TUI and offline model/OS settings | [Epic and child index](active/VITA-002-os-interaction-settings.md); each child names mandatory contracts/ADRs | Refinement; A/C/F Ready, other children await dependencies |
+| [VITA-002-K / #40](https://github.com/wjhuang88/vita/issues/40) | P0 | Spike | No-desktop Chinese IME: Rust Pinyin PTY, then Kmscon CJK BIOS/UEFI VM | [Owner](active/VITA-002-K-chinese-ime.md), [I011](../iterations/I011-chinese-ime-tui-spike.md) | Active Stage 1; Kmscon and product UI NOT proven |

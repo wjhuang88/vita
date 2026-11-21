@@ -161,6 +161,10 @@ These are design requirements; not all enforcement layers exist yet. See [archit
 
 Track work through [BOARD](docs/BOARD.md), [Product Backlog](docs/backlog/PRODUCT-BACKLOG.md) and [Implementation Roadmap](docs/roadmap/IMPLEMENTATION-ROADMAP.md).
 
+## Experimental no-desktop Chinese IME (I011, not shipped)
+
+[VITA-002-K #40](https://github.com/wjhuang88/vita/issues/40) is exploring a standalone Rust `inputx-pinyin` + Ratatui input prototype for composition/candidate selection, Unicode editing and host PTY behavior. Developers can launch `cargo +1.99.0 run --manifest-path prototypes/ime-input-spike/Cargo.toml` from a Unicode-capable terminal. **This is not the default Vita OS input path**: no proven BIOS/UEFI Kmscon/DRM CJK device rendering, physical keyboard, production license audit or hardware/release acceptance. The prototype has no model, secret or privileged operations. Read [I011](docs/iterations/I011-chinese-ime-tui-spike.md) and [prototype instructions](prototypes/ime-input-spike/README.md).
+
 ## Contributing
 
 Vita is early-stage and welcomes focused technical contributions: Rust-native system APIs, minimal Linux image building, firmware/ISO compatibility, security reviews, CI portability and documentation.

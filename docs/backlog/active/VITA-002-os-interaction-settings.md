@@ -35,9 +35,14 @@ Assumptions: 终端中文/resize、网络恢复后端、持久化安全可满足
 | [VITA-002-H](VITA-002-H-locale-time-settings.md) | 配置时区与键盘并诊断系统时间 | Story | Refinement | VITA-002-E, VITA-002-F | — |
 | [VITA-002-I](VITA-002-I-services-power.md) | 查看服务并安全重启服务或关闭VM | Story | Refinement | VITA-002-E, VITA-002-F | — |
 | [VITA-002-J](VITA-002-J-persistence-discovery.md) | 明确跨机器配置与秘密持久化 | Spike | Refinement | VITA-002-C | — |
+| [VITA-002-K](VITA-002-K-chinese-ime.md) | 纯 Rust 拼音与无桌面本机中文控制台分阶段验证（#40） | Spike | Active Stage 1 | 独立 PTY 原型可启动；最终集成依赖 VITA-002-A/B 与 VM 展示验证 | I011 Stage 1 |
 
 第一步建议 A；C、F也已达到各自Spike/技术验证的准备条件，可后续选择。无并行执行授权，也未创建新迭代。B→D形成首个可配置模型的产品闭环；E→G/H/I逐项接入OS变更。
 D额外受上游transport-policy和I010 UEFI在线问题制约；G/H/I受F与真实后端可用性制约。依赖图无环。不得选择父Epic替代子任务。
+
+## 2026-11-21 用户授权纯 TUI 中文输入专项
+
+单独 [#40](https://github.com/wjhuang88/vita/issues/40) / [I011](../../iterations/I011-chinese-ime-tui-spike.md) 已启动 Stage 1：独立 Rust `inputx-pinyin` + Ratatui 本机键入状态机与宿主 PTY 可运行验证。其第 2 阶段必须是 **BIOS/UEFI VM 内真实 Kmscon/DRM/KMS CJK 渲染+键盘**，第 3 阶段才允许架构选择与集成；不是对 Kmscon 或发行级中文支持的预先批准。它为 #30 的终端研究提供补充实验，不取代 #30 全量验收，也不提前把 B 提升为 Ready。默认无模型、无凭据、无磁盘写入，终端及 IME 故障不影响独立 ASCII 恢复。
 
 ## Milestones / completion
 
